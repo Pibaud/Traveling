@@ -1,24 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <item
-        android:id="@+id/discoveryFragment"
-        android:icon="@drawable/round_home_48"
+    <item android:id="@+id/explorerFragment"
+        android:icon="@drawable/home_selector"
         android:title="Accueil" />
-
-    <item
-        android:id="@+id/socialFragment"
-        android:icon="@drawable/ic_social"
+    <item android:id="@+id/socialFragment"
+        android:icon="@drawable/social_selector"
         android:title="Social" />
 
-    <item
-        android:id="@+id/itineraryFragment"
-        android:icon="@drawable/ic_route"
+    <item android:id="@+id/placeholder"
+        android:title=""
+        android:enabled="false" />
+
+    <item android:id="@+id/itineraryFragment"
+        android:icon="@drawable/itinerary_selector"
         android:title="Itinéraires" />
-
-    <item
-        android:id="@+id/profileFragment"
-        android:icon="@drawable/ic_profile"
+    <item android:id="@+id/profileFragment"
+        android:icon="@drawable/profile_selector"
         android:title="Profil" />
-
 </menu>

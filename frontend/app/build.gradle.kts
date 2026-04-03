@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.material)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("androidx.navigation:navigation-ui-ktx:2.8.5")
+    implementation("io.coil-kt:coil:2.6.0")
     implementation(libs.androidx.navigation.fragment)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

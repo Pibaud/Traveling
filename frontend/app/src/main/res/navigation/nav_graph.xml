@@ -11,22 +11,4 @@
         android:label="Accueil"
         tools:layout="@layout/fragment_discovery" />
 
-    <fragment
-        android:id="@+id/socialFragment"
-        android:name="com.example.application.features.social.SocialFragment"
-        android:label="Social"
-        tools:layout="@layout/fragment_social" />
-
-    <fragment
-        android:id="@+id/itineraryFragment"
-        android:name="com.example.application.features.itinerary.ItineraryFragment"
-        android:label="Itinéraires"
-        tools:layout="@layout/fragment_itinerary" />
-
-    <fragment
-        android:id="@+id/profileFragment"
-        android:name="com.example.application.features.profile.ProfileFragment"
-        android:label="Profil"
-        tools:layout="@layout/fragment_profile" />
-
 </navigation>
