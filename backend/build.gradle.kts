@@ -30,4 +30,5 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
+    implementation("com.google.firebase:firebase-admin:9.2.0")
 }
