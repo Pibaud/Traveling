@@ -3,6 +3,7 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+traveling-abb04-firebase-adminsdk-fbsvc-8a2a158bea.json
 
 ### STS ###
 .apt_generated
@@ -34,3 +35,4 @@ out/
 
 ### VS Code ###
 .vscode/
+backend/*.json
