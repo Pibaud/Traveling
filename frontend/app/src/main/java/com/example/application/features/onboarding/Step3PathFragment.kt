@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.viewpager2.widget.ViewPager2
 import com.example.application.R
 import com.example.application.databinding.Step3PathFragmentBinding
@@ -40,11 +41,8 @@ class Step3PathFragment : Fragment() {
             val prefs = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             prefs.edit().putBoolean("onboarding_finished", true).apply()
 
-            // 2. Navigation vers la suite (l'écran d'authentification)
-            // findNavController().navigate(R.id.action_onboarding_to_auth)
-
-            // Pour tester en attendant d'avoir fait l'écran d'Auth :
-            Toast.makeText(requireContext(), "Onboarding terminé ! Direction Auth...", Toast.LENGTH_SHORT).show()
+            // 2. Navigation RÉELLE
+            findNavController().navigate(R.id.action_onboarding_to_auth)
         }
     }
 

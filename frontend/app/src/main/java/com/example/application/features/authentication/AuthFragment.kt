@@ -1,0 +1,87 @@
+package com.example.application.features.authentication
+
+import android.os.Bundle
+import android.view.View
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.example.application.R
+import com.example.application.databinding.FragmentAuthBinding
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+
+class AuthFragment : Fragment(R.layout.fragment_auth) {
+    private var _binding: FragmentAuthBinding? = null
+    private val binding get() = _binding!!
+    private val auth = Firebase.auth
+
+    // État de l'interface (Connexion par défaut)
+    private var isLoginMode = true
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        _binding = FragmentAuthBinding.bind(view)
+
+        updateUiMode() // Initialisation
+
+        // 1. Basculer entre Connexion et Inscription
+        binding.tvSwitchMode.setOnClickListener {
+            isLoginMode = !isLoginMode
+            updateUiMode()
+        }
+
+        // 2. Action principale (Connexion OU Inscription)
+        binding.btnMainAuth.setOnClickListener {
+            if (isLoginMode) handleLogin()
+            else handleRegistration()
+        }
+
+        // 3. Mode Anonyme (Inchangé)
+        binding.btnAnonymous.setOnClickListener {
+            auth.signInAnonymously().addOnSuccessListener { navigateToFeed() }
+        }
+    }
+
+    private fun updateUiMode() {
+        if (isLoginMode) {
+            binding.tvAuthTitle.text = "Connexion"
+            binding.btnMainAuth.text = "Se connecter"
+            binding.tvSwitchMode.text = "Nouveau ? Créer un compte"
+            binding.etConfirmPasswordLayout.visibility = View.GONE
+        } else {
+            binding.tvAuthTitle.text = "Inscription"
+            binding.btnMainAuth.text = "S'inscrire"
+            binding.tvSwitchMode.text = "J'ai déjà un compte. Se connecter"
+            binding.etConfirmPasswordLayout.visibility = View.VISIBLE
+        }
+    }
+
+    private fun handleLogin() {
+        val email = binding.etEmail.text.toString()
+        val psw = binding.etPassword.text.toString()
+        if (email.isNotEmpty() && psw.isNotEmpty()) {
+            auth.signInWithEmailAndPassword(email, psw)
+                .addOnSuccessListener { navigateToFeed() }
+                .addOnFailureListener { /* Toast erreur */ }
+        }
+    }
+
+    private fun handleRegistration() {
+        val email = binding.etEmail.text.toString()
+        val psw = binding.etPassword.text.toString()
+        val confirmPsw = binding.etConfirmPassword.text.toString()
+
+        if (email.isEmpty() || psw.isEmpty()) return
+        if (psw != confirmPsw) {
+            // Toast: "Les mots de passe ne correspondent pas"
+            return
+        }
+
+        auth.createUserWithEmailAndPassword(email, psw)
+            .addOnSuccessListener { navigateToFeed() }
+            .addOnFailureListener { /* Toast erreur */ }
+    }
+
+    private fun navigateToFeed() {
+        findNavController().navigate(R.id.action_auth_to_feed)
+    }
+}

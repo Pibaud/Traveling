@@ -8,6 +8,8 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.example.application.R
 import com.example.application.databinding.MainActivityBinding
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: MainActivityBinding
@@ -21,25 +23,32 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
 
-        // --- 1. LOGIQUE DE REDIRECTION (ROUTING) ---
-        // On récupère le graphe de navigation actuel
+        // --- 1. LOGIQUE DE REDIRECTION DYNAMIQUE (ROUTING) ---
         val navInflater = navController.navInflater
         val navGraph = navInflater.inflate(R.navigation.nav_graph)
 
-        // On lit les SharedPreferences pour savoir si l'onboarding est fini
+        // Récupération des états (Onboarding et Auth)
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val onboardingFinished = prefs.getBoolean("onboarding_finished", false)
+        val currentUser = Firebase.auth.currentUser
 
-        // Si l'onboarding n'est pas fini, on force le démarrage sur l'Onboarding
-        if (!onboardingFinished) {
-            navGraph.setStartDestination(R.id.onboardingFragment)
-        } else {
-            // Sinon, on démarre normalement sur l'accueil (Feed)
-            // Assure-toi que R.id.explorerFragment est bien l'ID de ton accueil dans le nav_graph.xml
-            navGraph.setStartDestination(R.id.explorerFragment)
+        // Détermination de la destination de départ
+        when {
+            !onboardingFinished -> {
+                // Premier lancement : on force l'Onboarding
+                navGraph.setStartDestination(R.id.onboardingFragment)
+            }
+            currentUser == null -> {
+                // Onboarding fait mais pas connecté : direction Auth
+                navGraph.setStartDestination(R.id.authFragment)
+            }
+            else -> {
+                // Déjà connecté : direction le Feed
+                navGraph.setStartDestination(R.id.feedFragment)
+            }
         }
 
-        // On applique le graphe modifié au NavController
+        // On applique le graphe configuré au NavController
         navController.graph = navGraph
 
         // --- 2. GESTION DE LA BOTTOM NAV ---
@@ -47,12 +56,12 @@ class MainActivity : AppCompatActivity() {
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                // Écrans où la barre du bas doit être visible
-                R.id.explorerFragment, R.id.socialFragment, R.id.itineraryFragment, R.id.profileFragment -> {
+                // Liste des écrans où la barre du bas et le FAB sont visibles
+                R.id.feedFragment, R.id.socialFragment, R.id.itineraryFragment, R.id.profileFragment -> {
                     binding.bottomNav.visibility = View.VISIBLE
                     binding.fabAdd.visibility = View.VISIBLE
                 }
-                // Pour Onboarding, Auth, etc... on cache la barre
+                // On cache tout pour l'Onboarding et l'Auth
                 else -> {
                     binding.bottomNav.visibility = View.GONE
                     binding.fabAdd.visibility = View.GONE
