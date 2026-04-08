@@ -9,7 +9,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.shareRoutes() {
-    route("/Share") {
+    route("/share") {
         // Flux aléatoire de découverte
         get ("/places/searchbbox"){
             val minLat = call.parameters["minLat"]?.toDoubleOrNull() ?: return@get call.respond(HttpStatusCode.BadRequest)

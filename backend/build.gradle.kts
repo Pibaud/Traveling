@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
+    kotlin("plugin.serialization") version "1.9.22" // Utilise la même version que ton Kotlin
 }
 
 group = "com.example"
@@ -40,4 +41,10 @@ dependencies {
 
     // HikariCP (Le gestionnaire de connexions que tu utilises dans DatabaseFactory)
     implementation("com.zaxxer:HikariCP:5.0.1")
+    // Dépendances pour Ktor Serialization
+    implementation("io.ktor:ktor-server-content-negotiation-jvm")
+    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
+
+    // La bibliothèque de base (souvent nécessaire pour lever l'erreur 'kotlinx')
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }

@@ -19,16 +19,20 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.application.model.Place
 import com.mapbox.mapboxsdk.WellKnownTileServer
-import com.mapbox.mapboxsdk.plugins.annotation.SymbolManager
-import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions
 import kotlinx.coroutines.launch
 import com.google.gson.JsonPrimitive
+import com.mapbox.geojson.Feature
+import com.mapbox.geojson.FeatureCollection
+import com.mapbox.geojson.Point
+import com.mapbox.mapboxsdk.style.expressions.Expression
+import com.mapbox.mapboxsdk.style.expressions.Expression.get
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory.*
+import com.mapbox.mapboxsdk.style.layers.SymbolLayer
+import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
-
-    private var symbolManager: SymbolManager? = null
 
     // Injection du ViewModel
     private val viewModel: SearchViewModel by viewModels {
@@ -83,19 +87,25 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     }
 
     private fun updateMapMarkers(places: List<Place>) {
-        // On remplace le .clear() déprécié par :
-        symbolManager?.deleteAll()
-
-        val symbols = places.map { place ->
-            SymbolOptions()
-                .withLatLng(LatLng(place.latitude, place.longitude))
-                .withTextField(place.name)
-                .withTextOffset(arrayOf(0f, 1.5f)) // Pour mettre le texte sous le point
-                .withData(JsonPrimitive(place.id))
-                .withIconImage("marker-15") // Utilise une icone du style MapTiler
+        // On transforme tes objets Place en Features GeoJSON natifs
+        val features = places.map { place ->
+            val feature = Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude))
+            // On injecte tes données directement dans le point
+            feature.addStringProperty("id", place.id)
+            feature.addStringProperty("name", place.name)
+            feature.addStringProperty("category", place.category.name)
+            feature
         }
 
-        symbolManager?.create(symbols)
+        val featureCollection = FeatureCollection.fromFeatures(features)
+
+        // On envoie le nouveau paquet de données à la carte
+        binding.mapView.getMapAsync { map ->
+            map.style?.let { style ->
+                val source = style.getSourceAs<GeoJsonSource>("PLACES_SOURCE")
+                source?.setGeoJson(featureCollection)
+            }
+        }
     }
 
     private fun switchToGridView() {
@@ -138,12 +148,23 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         // --- ICI : REMPLACE PAR TON STYLE ID PERSO ---
         val mapId = "streets-v2"
         val styleUrl = "https://api.maptiler.com/maps/$mapId/style.json?key=$key"
-        symbolManager?.iconAllowOverlap = true
 
         binding.mapView.getMapAsync { map ->
-            val style = map.style!!
-            symbolManager = SymbolManager(binding.mapView, map, style)
-            map.setStyle(styleUrl)
+            map.setStyle(styleUrl) { style ->
+                // 1. On crée une source vide au démarrage
+                style.addSource(GeoJsonSource("PLACES_SOURCE", FeatureCollection.fromFeatures(emptyList())))
+
+                // 2. On crée le calque visuel branché sur cette source
+                val symbolLayer = SymbolLayer("PLACES_LAYER", "PLACES_SOURCE")
+                    .withProperties(
+                        iconImage("marker-15"), // Ton icône
+                        iconAllowOverlap(true),
+                        textField(get("name")), // Va lire la propriété "name" du GeoJSON
+                        textOffset(arrayOf(0f, 1.2f)),
+                        textColor(Color.BLACK)
+                    )
+                style.addLayer(symbolLayer)
+            }
 
             // On centre sur Montpellier
             map.cameraPosition = CameraPosition.Builder()
@@ -154,22 +175,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             map.addOnCameraIdleListener {
                 val bounds = map.projection.visibleRegion.latLngBounds
                 viewModel.fetchPlaces(
-                    bounds.latSouth, bounds.lonWest,
-                    bounds.latNorth, bounds.lonEast
+                    bounds.latitudeSouth, // Au lieu de latSouth
+                    bounds.longitudeWest, // Au lieu de lonWest
+                    bounds.latitudeNorth, // Au lieu de latNorth
+                    bounds.longitudeEast  // Au lieu de lonEast
                 )
-            }
-
-            symbolManager?.addClickListener { symbol ->
-                // 1. Retrouver l'ID du lieu stocké dans le "data" du symbole
-                val placeId = symbol.data?.asString
-
-                // 2. Chercher le lieu correspondant dans la liste du ViewModel
-                val clickedPlace = viewModel.places.value.find { it.id == placeId }
-
-                if (clickedPlace != null) {
-                    // onPlaceClicked(clickedPlace)
-                }
-                true // Indique que l'événement est consommé
             }
         }
     }

@@ -7,7 +7,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.pathRoutes() {
-    route("/api/path") {
+    route("/path") {
         // Endpoint pour générer les 2-3 options de parcours (Eco, Confort...)
         post("/generate") {
             val request = call.receive<PathRequest>()

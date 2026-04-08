@@ -1,5 +1,6 @@
-package com.example
+package com.example.application
 
+import com.example.HelloService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.calllogging.*

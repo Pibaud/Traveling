@@ -1,7 +1,5 @@
-package com.example
+package com.example.application
 
-import com.example.application.DatabaseFactory
-import com.example.application.configureRouting
 import io.ktor.server.application.*
 
 fun main(args: Array<String>) {
