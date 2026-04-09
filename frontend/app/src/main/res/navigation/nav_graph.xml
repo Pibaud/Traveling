@@ -38,4 +38,10 @@
             app:destination="@id/searchFragment" />
     </fragment>
 
+    <fragment
+        android:id="@+id/createPostFragment"
+        android:name="com.example.application.features.post.CreatePostFragment"
+        android:label="Nouveau Post"
+        tools:layout="@layout/fragment_create_post" />
+
 </navigation>

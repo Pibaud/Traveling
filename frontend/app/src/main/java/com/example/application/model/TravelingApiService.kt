@@ -10,4 +10,10 @@ interface TravelingApiService {
         @Query("maxLat") maxLat: Double,
         @Query("maxLng") maxLng: Double
     ): List<Place> // On utilise directement ta classe Place !
+
+    // Ajoute cette route dans ton interface
+    @GET("share/places/search")
+    suspend fun searchPlacesByName(
+        @Query("q") query: String
+    ): List<Place>
 }

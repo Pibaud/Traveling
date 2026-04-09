@@ -22,6 +22,20 @@ fun Route.shareRoutes() {
             call.respond(response)
         }
 
+        // Ajoute ceci dans ton route("/share") { ... }
+        get("/places/search") {
+            val query = call.request.queryParameters["q"]
+
+            if (query.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, "La requête 'q' est obligatoire")
+                return@get
+            }
+
+            // Appelle la base de données
+            val places = PlaceService.searchByName(query)
+            call.respond(places)
+        }
+
         get("/feed") {
             call.respond(listOf<Post>())
         }

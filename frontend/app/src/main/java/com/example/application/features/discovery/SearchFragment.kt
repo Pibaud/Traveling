@@ -33,6 +33,9 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import androidx.cardview.widget.CardView
 import androidx.core.content.res.ResourcesCompat
 import android.graphics.drawable.BitmapDrawable
+import com.mapbox.mapboxsdk.style.expressions.Expression.color
+import com.mapbox.mapboxsdk.style.expressions.Expression.match
+import com.mapbox.mapboxsdk.style.expressions.Expression.stop
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
     private var _binding: FragmentSearchBinding? = null
@@ -168,22 +171,33 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             map.setStyle(styleUrl) { style ->
                 // 1. Ajouter tes images Android au style de la carte MapLibre
                 // ATTENTION : Remplace R.drawable.ic_... par tes vrais noms d'icônes
-                drawableToBitmap(R.drawable.round_culture_24, R.color.culture_color)?.let { style.addImage("icon-culture", it, false) }
-                drawableToBitmap(R.drawable.round_restaurant_24, R.color.restauration_color)?.let { style.addImage("icon-restauration", it, false) }
-                drawableToBitmap(R.drawable.round_loisirs_24, R.color.sport_color)?.let { style.addImage("icon-loisirs", it, false) } // CORRIGÉ
-                drawableToBitmap(R.drawable.round_decouverte_24, R.color.discovery_color)?.let { style.addImage("icon-decouverte", it, false) }
+                drawableToBitmap(R.drawable.round_culture_24)?.let { style.addImage("icon-culture", it, true) }
+                drawableToBitmap(R.drawable.round_restaurant_24)?.let { style.addImage("icon-restauration", it, true) }
+                drawableToBitmap(R.drawable.round_loisirs_24)?.let { style.addImage("icon-loisirs", it, true) }
+                drawableToBitmap(R.drawable.round_decouverte_24)?.let { style.addImage("icon-decouverte", it, true) }
 
                 // 2. Source vide
                 style.addSource(GeoJsonSource("PLACES_SOURCE", FeatureCollection.fromFeatures(emptyList())))
 
-                // 3. Le calque : on demande à MapLibre d'utiliser la propriété "icon" du GeoJSON
+                // 3. Le calque avec la coloration GPU (iconColor)
                 val symbolLayer = SymbolLayer("PLACES_LAYER", "PLACES_SOURCE")
                     .withProperties(
-                        iconImage(get("icon")), // <-- MAGIE ICI : Lit la valeur "icon" du point
-                        iconAllowOverlap(false),
-                        iconPadding(15f),
-                        iconSize(1f) // Ajuste la taille selon tes drawables
-                        // J'ai enlevé textField() pour ne plus afficher les noms en permanence
+                        iconImage(get("icon")),
+                        iconAllowOverlap(false), // Garde l'espacement intelligent
+                        iconPadding(10f), // L'espace vital autour de chaque icône
+                        iconSize(0.6f), // Ajuste la taille (64px * 0.6 = environ 38px sur l'écran)
+
+                        // LA MAGIE DES COULEURS EST ICI
+                        iconColor(
+                            match(
+                                get("category"), // On lit le champ "category" du GeoJSON
+                                color(Color.BLACK), // Couleur par défaut en cas d'erreur
+                                stop("CULTURE", color(ContextCompat.getColor(requireContext(), R.color.culture_color))),
+                                stop("RESTAURATION", color(ContextCompat.getColor(requireContext(), R.color.restauration_color))),
+                                stop("LOISIRS", color(ContextCompat.getColor(requireContext(), R.color.sport_color))),
+                                stop("DECOUVERTE", color(ContextCompat.getColor(requireContext(), R.color.discovery_color)))
+                            )
+                        )
                     )
                 style.addLayer(symbolLayer)
             }
@@ -247,24 +261,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
     }
 
-    // On ajoute un paramètre colorRes
-    private fun drawableToBitmap(drawableId: Int, colorRes: Int): android.graphics.Bitmap? {
-        val drawable = ContextCompat.getDrawable(requireContext(), drawableId) ?: return null
-        // DrawableCompat force Android à appliquer la couleur de manière stable sur toutes les versions
-        val wrappedDrawable = androidx.core.graphics.drawable.DrawableCompat.wrap(drawable).mutate()
-        androidx.core.graphics.drawable.DrawableCompat.setTint(
-            wrappedDrawable,
-            ContextCompat.getColor(requireContext(), colorRes)
-        )
+    private fun drawableToBitmap(drawableId: Int): android.graphics.Bitmap? {
+        val drawable = ContextCompat.getDrawable(requireContext(), drawableId)?.mutate() ?: return null
 
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            drawable.intrinsicWidth,
-            drawable.intrinsicHeight,
-            android.graphics.Bitmap.Config.ARGB_8888
-        )
+        // On force l'icône en blanc pur (c'est le masque de base)
+        androidx.core.graphics.drawable.DrawableCompat.setTint(drawable, android.graphics.Color.WHITE)
+
+        // On force une taille fixe en pixels pour éviter les bugs d'icônes géantes
+        val size = 64
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(bitmap)
-        wrappedDrawable.setBounds(0, 0, canvas.width, canvas.height)
-        wrappedDrawable.draw(canvas)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+
         return bitmap
     }
 

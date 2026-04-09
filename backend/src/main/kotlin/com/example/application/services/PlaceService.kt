@@ -46,4 +46,41 @@ object PlaceService {
             results
         }
     }
+
+    // Ajoute cette fonction sous searchByBoundingBox
+    suspend fun searchByName(query: String, limit: Int = 10): List<Place> {
+        return DatabaseFactory.dbQuery {
+            val sql = """
+            SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng 
+            FROM places 
+            WHERE name ILIKE ? 
+            LIMIT ?
+        """.trimIndent()
+
+            val results = mutableListOf<Place>()
+
+            org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
+                sql,
+                args = listOf(
+                    org.jetbrains.exposed.sql.VarCharColumnType() to "%$query%", // Le % permet de chercher n'importe où dans le nom
+                    org.jetbrains.exposed.sql.IntegerColumnType() to limit
+                )
+            ) { rs ->
+                while (rs.next()) {
+                    results.add(Place(
+                        id = rs.getString("id"),
+                        name = rs.getString("name"),
+                        latitude = rs.getDouble("lat"),
+                        longitude = rs.getDouble("lng"),
+                        category = try {
+                            PlaceCategory.valueOf(rs.getString("category").uppercase())
+                        } catch (e: Exception) {
+                            PlaceCategory.CULTURE
+                        }
+                    ))
+                }
+            }
+            results
+        }
+    }
 }
