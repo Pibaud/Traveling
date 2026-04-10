@@ -1,12 +1,19 @@
 package com.example.application.routes
 
+import com.example.application.models.CreatePostRequest
 import com.example.application.models.Post
 import com.example.application.services.PlaceService
+import com.example.application.services.PostService
+import com.example.application.services.TagService
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.request.receive
 
 fun Route.shareRoutes() {
     route("/share") {
@@ -36,14 +43,39 @@ fun Route.shareRoutes() {
             call.respond(places)
         }
 
-        get("/feed") {
-            call.respond(listOf<Post>())
+        get("/tags/suggest") {
+            val q = call.request.queryParameters["q"] ?: ""
+            if (q.length < 2) return@get call.respond(emptyList<String>())
+            call.respond(TagService.searchTags(q))
         }
 
-        // Publication d'une photo avec tags IA
         post("/publish") {
-            val post = call.receive<Post>()
-            call.respondText("Photo publiée avec succès")
+            try {
+                // Ktor transforme automatiquement le JSON reçu en CreatePostRequest !
+                val request = call.receive<CreatePostRequest>()
+
+                // Tu passes toutes les infos à ton service de base de données
+                // (Assure-toi de mettre à jour PostService pour qu'il accepte la liste d'URLs)
+                val success = PostService.createNewPost(
+                    description = request.description,
+                    placeId = request.placeId,
+                    isPublic = request.isPublic,
+                    tags = request.tags,
+                    imageUrls = request.imageUrls // Sauvegarde ces URLs dans la table posts
+                )
+
+                if (success) {
+                    call.respond(HttpStatusCode.Created)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "Erreur d'insertion DB")
+                }
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, "Format de requête invalide : ${e.message}")
+            }
+        }
+
+        get("/feed") {
+            call.respond(listOf<Post>())
         }
     }
 }

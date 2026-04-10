@@ -115,11 +115,12 @@
                     android:layout_width="100dp"
                     android:layout_height="100dp"
                     android:layout_marginEnd="8dp"
-                    app:cardBackgroundColor="#F5F5F5"
-                    app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="#BDBDBD"
-                    app:strokeWidth="2dp">
+                    app:cardCornerRadius="16dp"
+                    app:cardBackgroundColor="@android:color/transparent"> <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_dashed_border" />
 
                     <ImageView
                         android:layout_width="32dp"
@@ -195,6 +196,38 @@
                     android:layout_height="wrap_content"
                     android:hint="À quel lieu correspond ce post ?"
                     android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tags"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:textColor="@android:color/black" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupTags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:chipSpacing="8dp" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:boxBackgroundMode="none"
+                app:startIconDrawable="@drawable/round_local_offer_24">
+
+                <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                    android:id="@+id/etTagInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Ajoutez des tags (aventure, soleil...)"
+                    android:inputType="text"
+                    android:background="@android:color/transparent" />
             </com.google.android.material.textfield.TextInputLayout>
 
         </LinearLayout>

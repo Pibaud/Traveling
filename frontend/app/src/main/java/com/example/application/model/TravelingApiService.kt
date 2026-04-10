@@ -1,6 +1,9 @@
 import com.example.application.model.Place
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.Response
 
 interface TravelingApiService {
     @GET("share/places/searchbbox")
@@ -16,4 +19,9 @@ interface TravelingApiService {
     suspend fun searchPlacesByName(
         @Query("q") query: String
     ): List<Place>
+
+    @POST("share/publish")
+    suspend fun publishPost(
+        @Body request: CreatePostRequest // <-- Remplacement total du Multipart
+    ): Response<Unit>
 }

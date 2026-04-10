@@ -6,6 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.javatime.datetime
+import java.time.LocalDateTime
 
 object DatabaseFactory {
 
@@ -35,4 +38,31 @@ object DatabaseFactory {
      */
     suspend fun <T> dbQuery(block: suspend Transaction.() -> T): T =
         newSuspendedTransaction(Dispatchers.IO) { block() }
+}
+
+object Posts : Table("posts") {
+    val id = uuid("id").clientDefault { java.util.UUID.randomUUID() }
+    val description = text("description")
+    val placeId = varchar("place_id", 50)
+    val isPublic = bool("is_public").default(true)
+    val imageUrls = text("image_urls")
+    val authorId = varchar("author_id", 100)
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+// AJOUT DE LA TABLE TAGS
+object Tags : Table("tags") {
+    val id = integer("id").autoIncrement()
+    val name = varchar("name", 50).uniqueIndex()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object PostTags : Table("post_tags") {
+    val postId = uuid("post_id").references(Posts.id)
+    val tagId = integer("tag_id").references(Tags.id)
+
+    override val primaryKey = PrimaryKey(postId, tagId)
 }

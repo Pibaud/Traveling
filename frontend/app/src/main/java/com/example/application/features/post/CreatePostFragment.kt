@@ -1,8 +1,10 @@
 package com.example.application.features.post
 
+import CreatePostRequest
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -15,8 +17,16 @@ import com.example.application.R
 import com.example.application.databinding.FragmentCreatePostBinding
 import com.example.application.model.Place
 import com.example.application.utils.setupPlaceAutocomplete
+import com.google.android.material.chip.Chip
 import java.util.Collections
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import android.net.Uri
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
 
@@ -24,6 +34,8 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
     private val binding get() = _binding!!
     private lateinit var photoAdapter: PhotoAdapter
     private var selectedPlace: Place? = null
+
+    private val selectedTags = mutableSetOf<String>()
 
     // Données simulées pour l'instant (les URIs de tes photos)
     private val photosList = mutableListOf<String>()
@@ -75,6 +87,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         setupToolbar()
         setupListeners()
         setupDragAndDrop()
+        setupTagsLogic()
 
         // --- AJOUTE CETTE LIGNE ---
         binding.btnAddPhoto.setOnClickListener {
@@ -149,7 +162,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
 
         binding.btnPublish.setOnClickListener {
             if (isPostValid()) {
-                // Action de publication ici
+                publishPost()
             }
         }
     }
@@ -232,6 +245,109 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
     private fun updatePhotoCount() {
         binding.tvPhotoCount.text = "(${photosList.size}/5)"
         validatePublishState()
+    }
+
+    private fun setupTagsLogic() {
+        binding.etTagInput.setOnKeyListener { _, keyCode, event ->
+            // Si l'utilisateur appuie sur Espace ou Entrée
+            if (event.action == KeyEvent.ACTION_DOWN &&
+                (keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_ENTER)) {
+
+                val tagText = binding.etTagInput.text.toString().trim().lowercase()
+                if (tagText.isNotEmpty() && !selectedTags.contains(tagText)) {
+                    addTagChip(tagText)
+                    binding.etTagInput.text = null // Vide le champ
+                }
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    private fun addTagChip(tag: String) {
+        selectedTags.add(tag)
+        val chip = Chip(requireContext()).apply {
+            text = "#$tag"
+            isCloseIconVisible = true
+            setOnCloseIconClickListener {
+                binding.chipGroupTags.removeView(this)
+                selectedTags.remove(tag)
+            }
+        }
+        binding.chipGroupTags.addView(chip)
+    }
+
+    private fun publishPost() {
+        // 1. Vérifications de base
+        val description = binding.etDescription.text.toString().trim()
+        val placeId = selectedPlace?.id ?: return
+        val isPublic = binding.switchPublic.isChecked
+        val tags = selectedTags.toList()
+
+        // On bloque le bouton pour éviter les doubles clics
+        binding.btnPublish.isEnabled = false
+        binding.btnPublish.text = "Publication..."
+
+        lifecycleScope.launch {
+            try {
+                // 2. Upload des images vers Firebase Storage
+                val uploadedImageUrls = uploadImagesToFirebase()
+
+                // 3. Création de l'objet JSON à envoyer au Backend
+                val request = CreatePostRequest(
+                    description = description,
+                    placeId = placeId,
+                    tags = tags,
+                    isPublic = isPublic,
+                    groupIds = emptyList(), // À gérer plus tard
+                    imageUrls = uploadedImageUrls
+                )
+
+                // 4. Envoi au Backend Ktor
+                val response = RetrofitInstance.api.publishPost(request)
+
+                if (response.isSuccessful) {
+                    Toast.makeText(requireContext(), "Post publié avec succès !", Toast.LENGTH_LONG).show()
+                    findNavController().navigateUp()
+                } else {
+                    Toast.makeText(requireContext(), "Erreur serveur", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Erreur : ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                // On restaure le bouton en cas d'erreur
+                binding.btnPublish.isEnabled = true
+                binding.btnPublish.text = "Publier"
+            }
+        }
+    }
+
+    // Fonction magique qui gère l'upload Firebase
+    private suspend fun uploadImagesToFirebase(): List<String> {
+        val storageRef = Firebase.storage.reference
+        val userId = Firebase.auth.currentUser?.uid ?: throw Exception("Utilisateur non connecté")
+
+        val downloadUrls = mutableListOf<String>()
+
+        // On parcourt tes URIs locales
+        for (uriString in photosList) {
+            val uri = Uri.parse(uriString)
+
+            // On respecte tes rules Firebase : /posts/{filename}
+            // (On ajoute le userId dans le nom de fichier pour être propre et éviter les doublons)
+            val fileName = "${userId}_${UUID.randomUUID()}.jpg"
+            val imageRef = storageRef.child("posts/$fileName")
+
+            // Upload ! (tasks.await() permet d'attendre la fin de la coroutine sans bloquer l'UI)
+            imageRef.putFile(uri).await()
+
+            // On récupère l'URL publique générée par Firebase
+            val downloadUrl = imageRef.downloadUrl.await()
+            downloadUrls.add(downloadUrl.toString())
+        }
+
+        return downloadUrls
     }
 
     override fun onDestroyView() {

@@ -47,4 +47,5 @@ dependencies {
 
     // La bibliothèque de base (souvent nécessaire pour lever l'erreur 'kotlinx')
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation("org.jetbrains.exposed:exposed-java-time:0.41.1")
 }
