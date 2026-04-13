@@ -7,5 +7,6 @@ data class CreatePostRequest(
     val tags: List<String>,
     val isPublic: Boolean,
     val groupIds: List<String> = emptyList(),
-    val imageUrls: List<String> // <-- NOUVEAU : On stocke directement les URLs Firebase
+    val imageUrls: List<String>,
+    val authorId: String
 )

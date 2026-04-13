@@ -284,6 +284,13 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         val placeId = selectedPlace?.id ?: return
         val isPublic = binding.switchPublic.isChecked
         val tags = selectedTags.toList()
+        val currentUser = Firebase.auth.currentUser
+        if (currentUser == null) {
+            Toast.makeText(requireContext(), "Erreur : Vous n'êtes pas connecté", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val userId = currentUser.uid
 
         // On bloque le bouton pour éviter les doubles clics
         binding.btnPublish.isEnabled = false
@@ -301,7 +308,8 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
                     tags = tags,
                     isPublic = isPublic,
                     groupIds = emptyList(), // À gérer plus tard
-                    imageUrls = uploadedImageUrls
+                    imageUrls = uploadedImageUrls,
+                    authorId = userId
                 )
 
                 // 4. Envoi au Backend Ktor

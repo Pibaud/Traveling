@@ -55,13 +55,13 @@ fun Route.shareRoutes() {
                 val request = call.receive<CreatePostRequest>()
 
                 // Tu passes toutes les infos à ton service de base de données
-                // (Assure-toi de mettre à jour PostService pour qu'il accepte la liste d'URLs)
                 val success = PostService.createNewPost(
                     description = request.description,
                     placeId = request.placeId,
                     isPublic = request.isPublic,
                     tags = request.tags,
-                    imageUrls = request.imageUrls // Sauvegarde ces URLs dans la table posts
+                    imageUrls = request.imageUrls,
+                    authorId = request.authorId
                 )
 
                 if (success) {
