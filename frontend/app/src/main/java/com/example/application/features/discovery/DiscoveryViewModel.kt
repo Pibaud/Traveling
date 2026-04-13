@@ -1,75 +1,40 @@
-package com.example.application.features.discovery
+package com.example.application.features.discovery // Vérifie ton package
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.application.model.Place
+import androidx.lifecycle.viewModelScope
 import com.example.application.model.Post
-import kotlin.random.Random
+import kotlinx.coroutines.launch
+import android.util.Log
 
 class DiscoveryViewModel : ViewModel() {
 
-    // Instance unique de Random pour garantir des probabilités réelles
-    private val random = Random.Default
-
-    // On observe désormais une liste de POSTS
-    private val _posts = MutableLiveData<List<Post>>(emptyList())
+    private val _posts = MutableLiveData<List<Post>>()
     val posts: LiveData<List<Post>> = _posts
 
-    private var currentPage = 0
-    private val pageSize = 10
-
     init {
+        // Au démarrage du ViewModel, on charge le feed
         loadMorePosts()
     }
 
     fun loadMorePosts() {
-        val currentList = _posts.value ?: emptyList()
-        val newPosts = mutableListOf<Post>()
+        // On lance une coroutine attachée au cycle de vie du ViewModel
+        viewModelScope.launch {
+            try {
+                // 1. Appel magique à ton backend Ktor
+                val fetchedPosts = RetrofitInstance.api.getFeed()
 
-        val startId = currentPage * pageSize
-        val endId = startId + pageSize
+                // 2. On met à jour l'UI
+                // Pour l'instant, on remplace la liste.
+                // (Plus tard, pour le scroll infini, on fera : _posts.value = currentList + fetchedPosts)
+                _posts.value = fetchedPosts
 
-        for (i in startId until endId) {
-            // Le lieu associé à ce post
-            val fakePlace = Place(
-                id = "place_$i",
-                name = "Spot incroyable n°$i",
-                latitude = 43.6107, // Coordonnées factices
-                longitude = 3.8767
-            )
-
-            val imageUrls = mutableListOf<String>()
-
-            // Probabilité : 70% de chance d'avoir 1 seule photo
-            if (random.nextFloat() > 0.30f) {
-                imageUrls.add("https://picsum.photos/seed/${i}_main/400/800")
-            } else {
-                // 30% de chance d'avoir un carrousel (3 à 8 photos)
-                val photoCount = random.nextInt(3, 9)
-                for (j in 0 until photoCount) {
-                    imageUrls.add("https://picsum.photos/seed/${i}_album_$j/400/800")
-                }
+                Log.d("FeedNetwork", "Succès : ${fetchedPosts.size} posts récupérés")
+            } catch (e: Exception) {
+                // En cas d'erreur (serveur éteint, pas de connexion...)
+                Log.e("FeedNetwork", "Erreur lors de la récupération du feed", e)
             }
-
-            // Création du post final
-            newPosts.add(
-                Post(
-                    id = "post_$i",
-                    authorId = "user_$i",
-                    authorName = "Auteur $i",
-                    authorAvatarUrl = "https://picsum.photos/seed/user_$i/100",
-                    description = "C'était une journée incroyable, je recommande !",
-                    imageUrls = imageUrls,
-                    likesCount = (10..500).random(), // Faux compte de likes
-                    commentsCount = (0..50).random(),
-                    tags = listOf("#Voyage", "#Découverte"),
-                    place = fakePlace
-                )
-            )
         }
-
-        _posts.value = currentList + newPosts
-        currentPage++
     }
 }

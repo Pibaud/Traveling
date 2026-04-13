@@ -75,7 +75,14 @@ fun Route.shareRoutes() {
         }
 
         get("/feed") {
-            call.respond(listOf<Post>())
+            try {
+                val feed = PostService.getFeed()
+                call.respond(HttpStatusCode.OK, feed)
+            } catch (e: Exception) {
+                // Toujours logguer l'erreur côté serveur pour le débug
+                application.log.error("Erreur lors de la récupération du feed", e)
+                call.respond(HttpStatusCode.InternalServerError, "Impossible de charger le flux")
+            }
         }
     }
 }

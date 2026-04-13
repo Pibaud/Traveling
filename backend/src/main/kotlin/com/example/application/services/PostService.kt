@@ -6,6 +6,9 @@ import com.example.application.PostTags
 import com.example.application.Tags
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
+import com.example.application.models.Post
+import com.example.application.models.Place
+import com.example.application.models.PlaceCategory
 
 object PostService {
 
@@ -47,5 +50,75 @@ object PostService {
             e.printStackTrace()
             false
         }
+    }
+
+    suspend fun getFeed(): List<Post> = dbQuery {
+        // La requête SQL magique qui fait tous les JOIN nécessaires
+        val sql = """
+        SELECT 
+            p.id as post_id, 
+            p.author_id, 
+            p.description, 
+            p.image_urls, 
+            CAST(EXTRACT(EPOCH FROM p.created_at) * 1000 AS BIGINT) as timestamp,
+            u.username as author_name,
+            pl.id as place_id, 
+            pl.name as place_name, 
+            pl.category as place_category, 
+            ST_Y(pl.location::geometry) as place_lat, 
+            ST_X(pl.location::geometry) as place_lng,
+            (
+                SELECT STRING_AGG(t.name, ',') 
+                FROM post_tags pt 
+                JOIN tags t ON pt.tag_id = t.id 
+                WHERE pt.post_id = p.id
+            ) as tags_list
+        FROM posts p
+        LEFT JOIN users u ON p.author_id = u.firebase_id
+        LEFT JOIN places pl ON p.place_id = pl.id
+        WHERE p.is_public = true
+        ORDER BY p.created_at DESC
+        LIMIT 20
+    """.trimIndent()
+
+        val results = mutableListOf<Post>()
+
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(sql) { rs ->
+            while (rs.next()) {
+                val imageUrlsStr = rs.getString("image_urls") ?: ""
+                val tagsStr = rs.getString("tags_list") ?: ""
+
+                // 1. Reconstruire l'objet Place
+                val place = Place(
+                    id = rs.getString("place_id") ?: "",
+                    name = rs.getString("place_name") ?: "Lieu inconnu",
+                    latitude = rs.getDouble("place_lat"),
+                    longitude = rs.getDouble("place_lng"),
+                    category = try {
+                        PlaceCategory.valueOf(rs.getString("place_category")?.uppercase() ?: "CULTURE")
+                    } catch (e: Exception) {
+                        PlaceCategory.CULTURE
+                    }
+                )
+
+                // 2. Reconstruire l'objet Post final
+                results.add(
+                    Post(
+                        id = rs.getString("post_id"),
+                        authorId = rs.getString("author_id") ?: "",
+                        authorName = rs.getString("author_name") ?: "Utilisateur inconnu",
+                        authorAvatarUrl = "", // Tu n'as pas encore cette colonne dans 'users', on laisse vide
+                        description = rs.getString("description") ?: "",
+                        imageUrls = if (imageUrlsStr.isNotBlank()) imageUrlsStr.split(",") else emptyList(),
+                        likesCount = 0,    // À lier plus tard à une table post_likes
+                        commentsCount = 0, // À lier plus tard à une table comments
+                        tags = if (tagsStr.isNotBlank()) tagsStr.split(",") else emptyList(),
+                        timestamp = rs.getLong("timestamp"),
+                        place = place
+                    )
+                )
+            }
+        }
+        results
     }
 }

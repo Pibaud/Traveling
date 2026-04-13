@@ -37,115 +37,104 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
         private var isLiked = false
         private var currentLikes = 0
         private var onPageChangeCallback: ViewPager2.OnPageChangeCallback? = null
+
         fun bind(post: Post) {
             val context = itemView.context
             val photoAdapter = PhotoCarouselAdapter(post.imageUrls)
             binding.vpPlacePhotos.adapter = photoAdapter
 
-            // --- NETTOYAGE OBLIGATOIRE (pour recyclage sain) ---
+            // --- GESTION DU CARROUSEL ---
             onPageChangeCallback?.let { binding.vpPlacePhotos.unregisterOnPageChangeCallback(it) }
 
-            // Si mono-photo
             if (post.imageUrls.size <= 1) {
-                // Masquer les deux indicateurs
                 binding.tlDots.visibility = View.GONE
                 binding.tvPageIndicator.visibility = View.GONE
             } else {
-                // Si multi-photos
                 binding.tlDots.visibility = View.VISIBLE
                 binding.tvPageIndicator.visibility = View.VISIBLE
 
-                // 1. Liaison avec les POINTS (TabLayoutMediator)
-                // Se lie automatiquement au cycle de vie de la vue, pas besoin de nettoyer
                 TabLayoutMediator(binding.tlDots, binding.vpPlacePhotos) { _, _ -> }.attach()
 
-                // 2. Liaison avec le TEXTE "X/Y photos"
-                // Initialisation immédiate
                 binding.tvPageIndicator.text = context.getString(
-                    R.string.page_indicator_text, // Défini dans strings.xml
-                    1, // Première page
-                    post.imageUrls.size
+                    R.string.page_indicator_text, 1, post.imageUrls.size
                 )
 
-                // Enregistrement de l'écouteur de changement de page
                 onPageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
                     override fun onPageSelected(position: Int) {
                         super.onPageSelected(position)
-                        // Met à jour le texte (position commence à 0, donc +1)
                         binding.tvPageIndicator.text = context.getString(
-                            R.string.page_indicator_text,
-                            position + 1,
-                            post.imageUrls.size
+                            R.string.page_indicator_text, position + 1, post.imageUrls.size
                         )
                     }
                 }
-
                 binding.vpPlacePhotos.registerOnPageChangeCallback(onPageChangeCallback!!)
             }
 
-            // Initialisation des données
+            // --- LIKES ET COMPTEURS ---
             currentLikes = post.likesCount
             binding.tvLikeCount.text = formatCount(currentLikes)
+            binding.tvCommentCount.text = formatCount(post.commentsCount)
 
-            // On s'assure que l'icône est l'outline par défaut au chargement
             binding.ivLike.setImageResource(R.drawable.round_favorite_48)
-            binding.ivLike.setColorFilter(null) // Pas de couleur particulière
+            binding.ivLike.setColorFilter(null)
 
-            // --- LOGIQUE DU CLIC SUR LE LIKE ---
             binding.ivLike.setOnClickListener {
-                isLiked = !isLiked // Inverse l'état
-
+                isLiked = !isLiked
                 if (isLiked) {
-                    // Passage au rouge + icône remplie
                     binding.ivLike.setImageResource(R.drawable.round_favorite_filled_48)
                     binding.ivLike.setColorFilter(
-                        androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary_color)
+                        androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary_color) // Assure-toi d'avoir cette couleur
                     )
                     currentLikes++
                 } else {
-                    // Retour à l'état normal
                     binding.ivLike.setImageResource(R.drawable.round_favorite_48)
-                    binding.ivLike.setColorFilter(
-                        android.graphics.Color.WHITE // Ou la couleur par défaut de tes icônes
-                    )
+                    binding.ivLike.setColorFilter(android.graphics.Color.WHITE)
                     currentLikes--
                 }
-
-                // Mise à jour du texte avec animation ou simple changement
                 binding.tvLikeCount.text = formatCount(currentLikes)
-
-                // Animation de "rebond" (Scale) pour donner du feedback
                 animateLikeButton()
             }
 
-            // 1. Photos et Avatar (inchangé)
-            binding.ivUserAvatar.load(post.authorAvatarUrl) {
-                crossfade(true)
-                transformations(CircleCropTransformation())
-            }
+            // --- NOUVELLES DONNÉES DU BACKEND ---
 
-            // 2. Textes existants
+            // 1. Textes de base
             binding.tvLocationName.text = post.place.name
             binding.tvUsername.text = "par ${post.authorName}"
 
-            // 3. NOUVEAU : Formatage et affichage des compteurs
-            binding.tvLikeCount.text = formatCount(post.likesCount)
-            binding.tvCommentCount.text = formatCount(post.commentsCount)
+            // 2. Description
+            if (post.description.isNotBlank()) {
+                binding.tvDescription.visibility = View.VISIBLE
+                binding.tvDescription.text = post.description
+            } else {
+                binding.tvDescription.visibility = View.GONE
+            }
 
-            // 4. NOUVEAU : Action du bouton Localisation (Google Maps)
+            // 3. Tags (Concaténés avec un #)
+            if (post.tags.isNotEmpty()) {
+                binding.tvTags.visibility = View.VISIBLE
+                binding.tvTags.text = post.tags.joinToString(" ") { "#$it" }
+            } else {
+                binding.tvTags.visibility = View.GONE
+            }
+
+            // 4. Avatar (avec sécurité si l'URL est vide)
+            val avatarToLoad = post.authorAvatarUrl.ifBlank {
+                R.drawable.round_account_circle_24 // Ton icône par défaut
+            }
+            binding.ivUserAvatar.load(avatarToLoad) {
+                crossfade(true)
+                transformations(CircleCropTransformation())
+                error(R.drawable.round_account_circle_24) // Sécurité si le lien Firebase est mort
+            }
+
+            // --- GOOGLE MAPS ---
             binding.ivLocation.setOnClickListener { view ->
-                // Création de l'URL géographique avec un marqueur (q=) et un label
                 val geoUri = "geo:0,0?q=${post.place.latitude},${post.place.longitude}(${Uri.encode(post.place.name)})"
                 val mapIntent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri))
-
-                // Optionnel : Forcer l'ouverture dans l'app Google Maps plutôt que le navigateur
                 mapIntent.setPackage("com.google.android.apps.maps")
-
-                // Lancement de l'activité (on utilise try/catch au cas où Maps n'est pas installé)
                 try {
                     view.context.startActivity(mapIntent)
                 } catch (e: Exception) {
-                    // Fallback si l'app Maps n'est pas installée : on laisse Android choisir (navigateur web, etc.)
                     val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri))
                     view.context.startActivity(fallbackIntent)
                 }

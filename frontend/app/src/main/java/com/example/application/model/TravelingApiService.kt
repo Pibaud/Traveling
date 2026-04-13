@@ -3,6 +3,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import com.example.application.model.Post
 import retrofit2.Response
 
 interface TravelingApiService {
@@ -24,4 +25,7 @@ interface TravelingApiService {
     suspend fun publishPost(
         @Body request: CreatePostRequest // <-- Remplacement total du Multipart
     ): Response<Unit>
+
+    @GET("share/feed")
+    suspend fun getFeed(): List<Post>
 }

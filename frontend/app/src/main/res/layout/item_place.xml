@@ -6,13 +6,13 @@
     android:layout_height="match_parent">
 
     <androidx.viewpager2.widget.ViewPager2
-    android:id="@+id/vpPlacePhotos"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent" />
+        android:id="@+id/vpPlacePhotos"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <View
         android:layout_width="match_parent"
@@ -166,6 +166,33 @@
             app:layout_constraintBottom_toBottomOf="@id/ivUserAvatar"
             app:layout_constraintStart_toStartOf="@id/tvLocationName"
             tools:text="par Utilisateur123" />
+
+        <TextView
+            android:id="@+id/tvDescription"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/ivUserAvatar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Super après-midi au soleil. On a adoré la vue et l'architecture du lieu !" />
+
+        <TextView
+            android:id="@+id/tvTags"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#90CAF9"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/tvDescription"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="#nature #balade #architecture" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
