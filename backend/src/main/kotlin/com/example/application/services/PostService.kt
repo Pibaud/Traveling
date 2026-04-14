@@ -8,7 +8,12 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import com.example.application.models.Post
 import com.example.application.models.Place
+import com.example.application.PostLikes
 import com.example.application.models.PlaceCategory
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import java.util.UUID
 
 object PostService {
 
@@ -120,5 +125,33 @@ object PostService {
             }
         }
         results
+    }
+
+    suspend fun toggleLike(postIdStr: String, userIdStr: String): Boolean = dbQuery {
+        val postUuid = try {
+            UUID.fromString(postIdStr)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("ID de post invalide")
+        }
+
+        // 1. On cherche si le like existe déjà
+        val existingLike = PostLikes.select {
+            (PostLikes.postId eq postUuid) and (PostLikes.userId eq userIdStr)
+        }.singleOrNull()
+
+        if (existingLike != null) {
+            // 2. Il existe -> L'utilisateur "Un-like"
+            PostLikes.deleteWhere {
+                (PostLikes.postId eq postUuid) and (PostLikes.userId eq userIdStr)
+            }
+            false // On retourne false pour dire "Ce n'est plus liké"
+        } else {
+            // 3. Il n'existe pas -> L'utilisateur "Like"
+            PostLikes.insert {
+                it[postId] = postUuid
+                it[userId] = userIdStr
+            }
+            true // On retourne true pour dire "C'est liké"
+        }
     }
 }

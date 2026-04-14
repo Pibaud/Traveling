@@ -1,3 +1,5 @@
+import com.example.application.model.LikeRequest
+import com.example.application.model.LikeResponse
 import com.example.application.model.Place
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -28,4 +30,7 @@ interface TravelingApiService {
 
     @GET("share/feed")
     suspend fun getFeed(): List<Post>
+
+    @POST("share/like")
+    suspend fun toggleLike(@Body request: LikeRequest): LikeResponse
 }

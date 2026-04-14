@@ -13,7 +13,9 @@ import com.example.application.databinding.ItemPlaceBinding
 import com.example.application.model.Post
 import com.google.android.material.tabs.TabLayoutMediator
 
-class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>() {
+class DiscoveryAdapter(
+    private val onLikeClicked: (String) -> Unit
+) : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>() {
 
     private var posts: List<Post> = emptyList()
 
@@ -24,7 +26,8 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewHolder {
         val binding = ItemPlaceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return PostViewHolder(binding)
+        // NOUVEAU 2 : On passe cette fonction au ViewHolder quand on le crée
+        return PostViewHolder(binding, onLikeClicked)
     }
 
     override fun onBindViewHolder(holder: PostViewHolder, position: Int) {
@@ -33,7 +36,12 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
 
     override fun getItemCount(): Int = posts.size
 
-    class PostViewHolder(private val binding: ItemPlaceBinding) : RecyclerView.ViewHolder(binding.root) {
+    // NOUVEAU 3 : Le ViewHolder accepte cette fonction dans son constructeur
+    class PostViewHolder(
+        private val binding: ItemPlaceBinding,
+        private val onLikeClicked: (String) -> Unit
+    ) : RecyclerView.ViewHolder(binding.root) {
+
         private var isLiked = false
         private var currentLikes = 0
         private var onPageChangeCallback: ViewPager2.OnPageChangeCallback? = null
@@ -83,7 +91,7 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
                 if (isLiked) {
                     binding.ivLike.setImageResource(R.drawable.round_favorite_filled_48)
                     binding.ivLike.setColorFilter(
-                        androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary_color) // Assure-toi d'avoir cette couleur
+                        androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary_color)
                     )
                     currentLikes++
                 } else {
@@ -93,15 +101,15 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
                 }
                 binding.tvLikeCount.text = formatCount(currentLikes)
                 animateLikeButton()
+
+                // NOUVEAU 4 : On déclenche l'alarme en envoyant l'ID du post !
+                onLikeClicked(post.id)
             }
 
             // --- NOUVELLES DONNÉES DU BACKEND ---
-
-            // 1. Textes de base
             binding.tvLocationName.text = post.place.name
             binding.tvUsername.text = "par ${post.authorName}"
 
-            // 2. Description
             if (post.description.isNotBlank()) {
                 binding.tvDescription.visibility = View.VISIBLE
                 binding.tvDescription.text = post.description
@@ -109,7 +117,6 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
                 binding.tvDescription.visibility = View.GONE
             }
 
-            // 3. Tags (Concaténés avec un #)
             if (post.tags.isNotEmpty()) {
                 binding.tvTags.visibility = View.VISIBLE
                 binding.tvTags.text = post.tags.joinToString(" ") { "#$it" }
@@ -117,14 +124,13 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
                 binding.tvTags.visibility = View.GONE
             }
 
-            // 4. Avatar (avec sécurité si l'URL est vide)
             val avatarToLoad = post.authorAvatarUrl.ifBlank {
-                R.drawable.round_account_circle_24 // Ton icône par défaut
+                R.drawable.round_account_circle_24
             }
             binding.ivUserAvatar.load(avatarToLoad) {
                 crossfade(true)
                 transformations(CircleCropTransformation())
-                error(R.drawable.round_account_circle_24) // Sécurité si le lien Firebase est mort
+                error(R.drawable.round_account_circle_24)
             }
 
             // --- GOOGLE MAPS ---
@@ -141,7 +147,6 @@ class DiscoveryAdapter : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>()
             }
         }
 
-        // Fonction utilitaire pour formater les chiffres (ex: 1500 devient 1.5k)
         private fun formatCount(count: Int): String {
             return when {
                 count >= 1000000 -> String.format("%.1fM", count / 1000000.0)

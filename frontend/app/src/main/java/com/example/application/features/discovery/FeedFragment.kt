@@ -46,7 +46,9 @@ class FeedFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = DiscoveryAdapter()
+        adapter = DiscoveryAdapter { postId ->
+            viewModel.toggleLikePost(postId)
+        }
         val layoutManager = LinearLayoutManager(requireContext())
 
         binding.rvDiscovery.layoutManager = layoutManager

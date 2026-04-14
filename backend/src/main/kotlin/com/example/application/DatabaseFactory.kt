@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.Table
@@ -65,4 +66,13 @@ object PostTags : Table("post_tags") {
     val tagId = integer("tag_id").references(Tags.id)
 
     override val primaryKey = PrimaryKey(postId, tagId)
+}
+
+object PostLikes : Table("post_likes") {
+    val userId = varchar("user_id", 100)
+    // On précise explicitement le ON DELETE CASCADE pour Exposed
+    val postId = uuid("post_id").references(Posts.id, onDelete = ReferenceOption.CASCADE)
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(userId, postId)
 }

@@ -1,16 +1,12 @@
 package com.example.application.routes
 
 import com.example.application.models.CreatePostRequest
-import com.example.application.models.Post
+import com.example.application.models.LikeRequest
 import com.example.application.services.PlaceService
 import com.example.application.services.PostService
 import com.example.application.services.TagService
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
-import io.ktor.http.content.streamProvider
 import io.ktor.server.application.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.request.receive
@@ -82,6 +78,23 @@ fun Route.shareRoutes() {
                 // Toujours logguer l'erreur côté serveur pour le débug
                 application.log.error("Erreur lors de la récupération du feed", e)
                 call.respond(HttpStatusCode.InternalServerError, "Impossible de charger le flux")
+            }
+        }
+
+        post("/like") {
+            try {
+                // On reçoit le couple (postId, userId)
+                val request = call.receive<LikeRequest>()
+
+                // On appelle le service magique
+                val isLiked = PostService.toggleLike(request.postId, request.userId)
+
+                // On répond avec un petit JSON indiquant le nouvel état du bouton
+                call.respond(HttpStatusCode.OK, mapOf("liked" to isLiked))
+
+            } catch (e: Exception) {
+                application.log.error("Erreur lors du like : ${e.message}")
+                call.respond(HttpStatusCode.BadRequest, "Impossible de traiter le like")
             }
         }
     }
