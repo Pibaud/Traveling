@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "95644870903",
+    "project_id": "traveling-abb04",
+    "storage_bucket": "traveling-abb04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:95644870903:android:49850f021af2d29b990bf2",
+        "android_client_info": {
+          "package_name": "com.example.application"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "95644870903-31tusf1f5l2r0s16cp30ojfel3dhjf12.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7sePOc2R2iIkXncZviIqWXgXnfZf9kSY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "95644870903-31tusf1f5l2r0s16cp30ojfel3dhjf12.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
