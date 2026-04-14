@@ -44,4 +44,10 @@
         android:label="Nouveau Post"
         tools:layout="@layout/fragment_create_post" />
 
+    <fragment
+        android:id="@+id/socialFragment"
+        android:name="com.example.application.features.social.SocialFragment"
+        android:label="Social"
+        tools:layout="@layout/fragment_social" />
+
 </navigation>

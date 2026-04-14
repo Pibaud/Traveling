@@ -14,6 +14,6 @@ data class Post(
     val commentsCount: Int = 0,
     val tags: List<String> = emptyList(),
     val timestamp: Long = System.currentTimeMillis(),
-
-    val place: Place = Place()
+    val place: Place = Place(),
+    val isLikedByMe: Boolean = false
 )

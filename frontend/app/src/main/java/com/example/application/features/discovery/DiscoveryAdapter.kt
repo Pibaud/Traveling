@@ -83,8 +83,19 @@ class DiscoveryAdapter(
             binding.tvLikeCount.text = formatCount(currentLikes)
             binding.tvCommentCount.text = formatCount(post.commentsCount)
 
-            binding.ivLike.setImageResource(R.drawable.round_favorite_48)
-            binding.ivLike.setColorFilter(null)
+            // NOUVEAU : On utilise la vraie valeur de la DB au lieu de 'false'
+            isLiked = post.isLikedByMe
+
+            // On met à jour l'icône immédiatement selon l'état du like
+            if (isLiked) {
+                binding.ivLike.setImageResource(R.drawable.round_favorite_filled_48)
+                binding.ivLike.setColorFilter(
+                    androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary_color)
+                )
+            } else {
+                binding.ivLike.setImageResource(R.drawable.round_favorite_48)
+                binding.ivLike.setColorFilter(null) // Garde la couleur blanche/transparente de base
+            }
 
             binding.ivLike.setOnClickListener {
                 isLiked = !isLiked

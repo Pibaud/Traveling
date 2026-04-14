@@ -5,7 +5,7 @@ import retrofit2.Retrofit
 
 object RetrofitInstance {
     // REMPLACE PAR TON IP (10.0.2.2 pour l'émulateur ou l'IP de ton PC en Wi-Fi)
-    private const val BASE_URL = "http://0.0.0.0:8081/"
+    private const val BASE_URL = "http://10.0.2.2:8081/"
 
     private val json = Json {
         ignoreUnknownKeys = true // Pratique si le back envoie plus d'infos que prévu
