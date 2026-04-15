@@ -1,6 +1,7 @@
 import com.example.application.model.LikeRequest
 import com.example.application.model.LikeResponse
 import com.example.application.model.Place
+import com.example.application.model.UserSyncRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -33,4 +34,7 @@ interface TravelingApiService {
 
     @POST("share/like")
     suspend fun toggleLike(@Body request: LikeRequest): LikeResponse
+
+    @POST("users/sync")
+    suspend fun syncUser(@Body request: UserSyncRequest): Response<Unit>
 }
