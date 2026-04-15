@@ -2,12 +2,16 @@ package com.example.application.features.authentication
 
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.application.R
 import com.example.application.databinding.FragmentAuthBinding
+import com.example.application.model.UserSyncRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 
 class AuthFragment : Fragment(R.layout.fragment_auth) {
     private var _binding: FragmentAuthBinding? = null
@@ -76,8 +80,31 @@ class AuthFragment : Fragment(R.layout.fragment_auth) {
             return
         }
 
+        // Dans AuthFragment.kt (simplifié)
         auth.createUserWithEmailAndPassword(email, psw)
-            .addOnSuccessListener { navigateToFeed() }
+            .addOnSuccessListener { authResult ->
+                val firebaseUser = authResult.user
+                if (firebaseUser != null) {
+                    // Lancement de la synchronisation vers Ktor
+                    lifecycleScope.launch {
+                        try {
+                            val request = UserSyncRequest(
+                                uid = firebaseUser.uid,
+                                email = firebaseUser.email ?: ""
+                            )
+                            val response = RetrofitInstance.api.syncUser(request)
+
+                            if (response.isSuccessful) {
+                                navigateToFeed()
+                            } else {
+                                Toast.makeText(requireContext(), "Erreur synchro base", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(requireContext(), "Erreur réseau : ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
             .addOnFailureListener { /* Toast erreur */ }
     }
 

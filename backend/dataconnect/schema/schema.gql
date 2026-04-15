@@ -1,0 +1,6 @@
+type User @table {
+  id: String! @primaryKey # Ici on stockera le UID de Firebase Auth
+  email: String!
+  username: String
+  createdAt: Date! @default(expr: "request.time")
+}

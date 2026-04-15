@@ -76,3 +76,12 @@ object PostLikes : Table("post_likes") {
 
     override val primaryKey = PrimaryKey(userId, postId)
 }
+
+object Users : Table("users") {
+    val firebaseId = varchar("firebase_id", 128)
+    val email = varchar("email", 255)
+    val username = varchar("username", 100).nullable()
+    val createdAt = long("created_at").default(System.currentTimeMillis())
+
+    override val primaryKey = PrimaryKey(firebaseId, email, username, createdAt)
+}
