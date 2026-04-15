@@ -76,6 +76,12 @@ class SocialFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Force le rechargement avec le véritable utilisateur actuel de Firebase
+        viewModel.loadGroups()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

@@ -1,5 +1,6 @@
 import com.example.application.model.CreateGroupRequest
 import com.example.application.model.Group
+import com.example.application.model.JoinGroupRequest
 import com.example.application.model.LikeRequest
 import com.example.application.model.LikeResponse
 import com.example.application.model.NotificationToggleRequest
@@ -52,4 +53,7 @@ interface TravelingApiService {
 
     @POST("share/groups/notifications")
     suspend fun toggleGroupNotifications(@Body request: NotificationToggleRequest): Response<Unit>
+
+    @POST("share/groups/join")
+    suspend fun joinGroup(@Body request: JoinGroupRequest): Response<Map<String, String>>
 }
