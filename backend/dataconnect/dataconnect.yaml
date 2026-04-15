@@ -1,0 +1,13 @@
+specVersion: "v1"
+serviceId: "traveling-abb04-service"
+location: "europe-west9"
+schemas:
+  - source: "./schema"
+    datasource:
+      postgresql:
+        database: "travelingdb"
+        cloudSql:
+          instanceId: "traveling-abb04-instance"
+          # schemaValidation: "STRICT"     # STRICT mode makes Postgres schema match Data Connect exactly.
+          # schemaValidation: "COMPATIBLE" # COMPATIBLE mode makes Postgres schema compatible with Data Connect.
+connectorDirs: ["./example"]

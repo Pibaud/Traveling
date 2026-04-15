@@ -48,6 +48,16 @@
         android:id="@+id/socialFragment"
         android:name="com.example.application.features.social.SocialFragment"
         android:label="Social"
-        tools:layout="@layout/fragment_social" />
+        tools:layout="@layout/fragment_social">
+        <action
+            android:id="@+id/action_social_to_createGroup"
+            app:destination="@id/createGroupFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/createGroupFragment"
+        android:name="com.example.application.features.social.CreateGroupFragment"
+        android:label="Nouveau Groupe"
+        tools:layout="@layout/fragment_create_group" />
 
 </navigation>

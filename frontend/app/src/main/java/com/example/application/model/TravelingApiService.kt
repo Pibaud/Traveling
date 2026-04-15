@@ -1,5 +1,8 @@
+import com.example.application.model.CreateGroupRequest
+import com.example.application.model.Group
 import com.example.application.model.LikeRequest
 import com.example.application.model.LikeResponse
+import com.example.application.model.NotificationToggleRequest
 import com.example.application.model.Place
 import com.example.application.model.UserSyncRequest
 import retrofit2.http.Body
@@ -37,4 +40,16 @@ interface TravelingApiService {
 
     @POST("users/sync")
     suspend fun syncUser(@Body request: UserSyncRequest): Response<Unit>
+
+    @POST("share/groups/create")
+    suspend fun createGroup(@Body request: CreateGroupRequest): Response<Unit>
+
+    @GET("share/groups/popular")
+    suspend fun getPopularGroups(@Query("userId") userId: String?): List<Group>
+
+    @GET("share/groups/my")
+    suspend fun getMyGroups(@Query("userId") userId: String): List<Group>
+
+    @POST("share/groups/notifications")
+    suspend fun toggleGroupNotifications(@Body request: NotificationToggleRequest): Response<Unit>
 }

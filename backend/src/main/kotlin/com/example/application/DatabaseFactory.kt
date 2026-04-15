@@ -85,3 +85,26 @@ object Users : Table("users") {
 
     override val primaryKey = PrimaryKey(firebaseId, email, username, createdAt)
 }
+
+object Groups : Table("groups") {
+    val id = uuid("id").clientDefault { java.util.UUID.randomUUID() }
+    val name = varchar("name", 50)
+    val description = text("description")
+    val urlGroupPhoto = text("url_group_photo")
+    val nbMembers = integer("nb_members").default(1)
+    val nbPosts = integer("nb_posts").default(0)
+    val isPublic = bool("is_public").default(true)
+    val tags = text("tags")
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+    override val primaryKey = PrimaryKey(id)
+}
+
+object GroupMembers : Table("group_members") {
+    val groupId = uuid("group_id").references(Groups.id, onDelete = ReferenceOption.CASCADE)
+    val userId = varchar("user_id", 100)
+    val role = varchar("role", 20).default("MEMBER")
+    val status = varchar("status", 20).default("ACCEPTED")
+    val shouldNotify = bool("should_notify").default(false)
+    val joinedAt = datetime("joined_at").clientDefault { LocalDateTime.now() }
+    override val primaryKey = PrimaryKey(groupId, userId)
+}

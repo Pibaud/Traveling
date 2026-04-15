@@ -1,7 +1,10 @@
 package com.example.application.routes
 
+import com.example.application.models.CreateGroupRequest
 import com.example.application.models.CreatePostRequest
 import com.example.application.models.LikeRequest
+import com.example.application.models.NotificationToggleRequest
+import com.example.application.services.GroupService
 import com.example.application.services.PlaceService
 import com.example.application.services.PostService
 import com.example.application.services.TagService
@@ -98,6 +101,33 @@ fun Route.shareRoutes() {
                 application.log.error("Erreur lors du like : ${e.message}")
                 call.respond(HttpStatusCode.BadRequest, "Impossible de traiter le like")
             }
+        }
+
+        post("/groups/create") {
+            try {
+                val request = call.receive<CreateGroupRequest>()
+                val success = GroupService.createNewGroup(request.name, request.description, request.isPublic, request.tags, request.photoUrl, request.authorId)
+                if (success) call.respond(HttpStatusCode.Created) else call.respond(HttpStatusCode.InternalServerError, "Erreur création groupe")
+            } catch (e: Exception) { call.respond(HttpStatusCode.BadRequest, "Requête invalide") }
+        }
+
+        get("/groups/popular") {
+            val currentUserId = call.request.queryParameters["userId"]
+            val groups = GroupService.getPopularGroups(currentUserId)
+            call.respond(HttpStatusCode.OK, groups)
+        }
+
+        get("/groups/my") {
+            val userId = call.request.queryParameters["userId"]
+            if (userId.isNullOrBlank()) { call.respond(HttpStatusCode.BadRequest, "userId manquant"); return@get }
+            val groups = GroupService.getMyGroups(userId)
+            call.respond(HttpStatusCode.OK, groups)
+        }
+
+        post("/groups/notifications") {
+            val request = call.receive<NotificationToggleRequest>()
+            val success = GroupService.toggleNotification(request.groupId, request.userId, request.shouldNotify)
+            if (success) call.respond(HttpStatusCode.OK) else call.respond(HttpStatusCode.NotFound)
         }
     }
 }
