@@ -2,6 +2,7 @@ package com.example.application.routes
 
 import com.example.application.models.PathRequest
 import com.example.application.models.PathResponse
+import com.example.application.services.PathService
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -20,6 +21,12 @@ fun Route.pathRoutes() {
         get("/export/{id}") {
             val id = call.parameters["id"]
             call.respondText("Export PDF pour le trajet $id")
+        }
+
+        get("/list") {
+            val userId = call.request.queryParameters["userId"] ?: ""
+            val category = call.request.queryParameters["category"] ?: "SUGGESTIONS"
+            call.respond(PathService.getItinerariesByCategory(userId, category))
         }
     }
 }

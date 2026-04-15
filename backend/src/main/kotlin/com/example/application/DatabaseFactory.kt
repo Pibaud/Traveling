@@ -108,3 +108,35 @@ object GroupMembers : Table("group_members") {
     val joinedAt = datetime("joined_at").clientDefault { LocalDateTime.now() }
     override val primaryKey = PrimaryKey(groupId, userId)
 }
+
+// Table principale des itinéraires
+object Itineraries : Table("itinerary") {
+    val id = integer("id").autoIncrement()
+    val name = text("name")
+    val description = text("description").nullable()
+    val hexColor = text("hex_color")
+    val totalPrice = integer("total_price")
+    val totalDuration = integer("total_duration")
+    val avgEffort = double("avg_effort")
+    val mealIncluded = bool("meal_included")
+    val authorId = varchar("author_id", 128)
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+// Table des étapes (Lieux dans l'itinéraire)
+object Steps : Table("step") {
+    val placeId = varchar("place_id", 50)
+    val itineraryId = integer("itinerary_id").references(Itineraries.id)
+    val stepOrder = integer("step_order")
+
+    override val primaryKey = PrimaryKey(placeId, itineraryId)
+}
+
+// Table des favoris
+object ItineraryLikes : Table("itinerary_likes") {
+    val userId = varchar("user_id", 128)
+    val itineraryId = integer("itinerary_id").references(Itineraries.id)
+
+    override val primaryKey = PrimaryKey(userId, itineraryId)
+}

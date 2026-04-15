@@ -60,4 +60,10 @@
         android:label="Nouveau Groupe"
         tools:layout="@layout/fragment_create_group" />
 
+    <fragment
+        android:id="@+id/itineraryFragment"
+        android:name="com.example.application.features.path.PathFragment"
+        android:label="Vos Parcours"
+        tools:layout="@layout/fragment_path" />
+
 </navigation>

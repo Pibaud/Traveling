@@ -10,6 +10,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 import com.example.application.model.Post
+import com.example.application.models.ItineraryResponse
 import retrofit2.Response
 
 interface TravelingApiService {
@@ -52,4 +53,10 @@ interface TravelingApiService {
 
     @POST("share/groups/notifications")
     suspend fun toggleGroupNotifications(@Body request: NotificationToggleRequest): Response<Unit>
+
+    @GET("path/list")
+    suspend fun getPathList(
+        @Query("userId") userId: String,
+        @Query("category") category: String
+    ): List<ItineraryResponse>
 }
