@@ -22,20 +22,18 @@ class DiscoveryViewModel : ViewModel() {
     }
 
     fun loadMorePosts() {
-        // On lance une coroutine attachée au cycle de vie du ViewModel
+        // 1. Récupérer l'ID de l'utilisateur connecté (s'il n'est pas connecté, on envoie une chaîne vide)
+        val currentUserId = Firebase.auth.currentUser?.uid ?: ""
+
         viewModelScope.launch {
             try {
-                // 1. Appel magique à ton backend Ktor
-                val fetchedPosts = RetrofitInstance.api.getFeed()
+                // 2. On passe l'ID à Retrofit !
+                val fetchedPosts = RetrofitInstance.api.getFeed(currentUserId)
 
-                // 2. On met à jour l'UI
-                // Pour l'instant, on remplace la liste.
-                // (Plus tard, pour le scroll infini, on fera : _posts.value = currentList + fetchedPosts)
                 _posts.value = fetchedPosts
 
                 Log.d("FeedNetwork", "Succès : ${fetchedPosts.size} posts récupérés")
             } catch (e: Exception) {
-                // En cas d'erreur (serveur éteint, pas de connexion...)
                 Log.e("FeedNetwork", "Erreur lors de la récupération du feed", e)
             }
         }

@@ -72,12 +72,14 @@ fun Route.shareRoutes() {
 
         get("/feed") {
             try {
-                val feed = PostService.getFeed()
+                // On récupère l'ID de l'utilisateur passé en paramètre par Android
+                val currentUserId = call.request.queryParameters["userId"]
+
+                val feed = PostService.getFeed(currentUserId)
                 call.respond(HttpStatusCode.OK, feed)
             } catch (e: Exception) {
-                // Toujours logguer l'erreur côté serveur pour le débug
-                application.log.error("Erreur lors de la récupération du feed", e)
-                call.respond(HttpStatusCode.InternalServerError, "Impossible de charger le flux")
+                application.log.error("Erreur feed", e)
+                call.respond(HttpStatusCode.InternalServerError, "Erreur")
             }
         }
 

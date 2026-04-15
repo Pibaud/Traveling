@@ -30,7 +30,7 @@ interface TravelingApiService {
     ): Response<Unit>
 
     @GET("share/feed")
-    suspend fun getFeed(): List<Post>
+    suspend fun getFeed(@Query("userId") userId: String): List<Post>
 
     @POST("share/like")
     suspend fun toggleLike(@Body request: LikeRequest): LikeResponse
