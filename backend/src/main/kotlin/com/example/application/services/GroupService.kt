@@ -86,4 +86,34 @@ object GroupService {
             it[shouldNotify] = enable
         } > 0
     }
+
+    suspend fun joinGroup(groupIdStr: String, userIdStr: String): String = dbQuery {
+        val groupUuid = java.util.UUID.fromString(groupIdStr)
+
+        // 1. On récupère les infos du groupe
+        val group = Groups.select { Groups.id eq groupUuid }.singleOrNull() ?: return@dbQuery "NOT_FOUND"
+        val isPublic = group[Groups.isPublic]
+
+        // 2. On détermine le statut
+        val newStatus = if (isPublic) "ACCEPTED" else "PENDING"
+
+        // 3. On ajoute l'utilisateur
+        val inserted = GroupMembers.insertIgnore {
+            it[groupId] = groupUuid
+            it[userId] = userIdStr
+            it[role] = "MEMBER"
+            it[status] = newStatus
+        }.insertedCount > 0
+
+        // 4. Si c'est public et que l'insertion a marché, on ajoute +1 au compteur
+        if (inserted && isPublic) {
+            Groups.update({ Groups.id eq groupUuid }) {
+                with(SqlExpressionBuilder) {
+                    it.update(nbMembers, nbMembers + 1)
+                }
+            }
+        }
+
+        newStatus // On renvoie "ACCEPTED" ou "PENDING" au front
+    }
 }

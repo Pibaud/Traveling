@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.application.model.Group
+import com.example.application.model.JoinGroupRequest
 import com.example.application.model.NotificationToggleRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -23,7 +24,7 @@ class SocialViewModel : ViewModel() {
         loadGroups()
     }
 
-    private fun loadGroups() {
+    fun loadGroups() {
         val userId = Firebase.auth.currentUser?.uid
 
         viewModelScope.launch {
@@ -44,8 +45,28 @@ class SocialViewModel : ViewModel() {
     }
 
     fun onJoinGroupClicked(group: Group) {
-        // TODO: Implémenter l'appel réseau pour rejoindre un groupe plus tard
-        Log.d("SocialViewModel", "Demande pour rejoindre le groupe : ${group.name}")
+        val userId = Firebase.auth.currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            try {
+                val request = JoinGroupRequest(group.id, userId)
+                val response = RetrofitInstance.api.joinGroup(request)
+
+                if (response.isSuccessful) {
+                    val status = response.body()?.get("status")
+
+                    if (status == "ACCEPTED") {
+                        // Succès public : on recharge tout pour mettre les listes à jour !
+                        loadGroups()
+                    } else if (status == "PENDING") {
+                        // C'était privé : on pourrait juste griser le bouton ou afficher un Toast
+                        Log.d("SocialViewModel", "Demande envoyée, en attente de validation.")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SocialViewModel", "Erreur lors de la demande de participation", e)
+            }
+        }
     }
 
     fun onNotificationToggleClicked(group: Group, enabled: Boolean) {

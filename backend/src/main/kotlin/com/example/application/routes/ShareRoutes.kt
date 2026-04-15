@@ -3,6 +3,7 @@ package com.example.application.routes
 import com.example.application.models.CreateGroupRequest
 import com.example.application.models.CreatePostRequest
 import com.example.application.models.LikeRequest
+import com.example.application.models.JoinGroupRequest
 import com.example.application.models.NotificationToggleRequest
 import com.example.application.services.GroupService
 import com.example.application.services.PlaceService
@@ -128,6 +129,18 @@ fun Route.shareRoutes() {
             val request = call.receive<NotificationToggleRequest>()
             val success = GroupService.toggleNotification(request.groupId, request.userId, request.shouldNotify)
             if (success) call.respond(HttpStatusCode.OK) else call.respond(HttpStatusCode.NotFound)
+        }
+
+        post("/groups/join") {
+            val request = call.receive<JoinGroupRequest>()
+            val resultStatus = GroupService.joinGroup(request.groupId, request.userId)
+
+            if (resultStatus == "NOT_FOUND") {
+                call.respond(HttpStatusCode.NotFound, "Groupe introuvable")
+            } else {
+                // On renvoie le statut pour que le téléphone sache quoi afficher
+                call.respond(HttpStatusCode.OK, mapOf("status" to resultStatus))
+            }
         }
     }
 }

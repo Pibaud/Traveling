@@ -66,4 +66,17 @@
         android:label="Vos Parcours"
         tools:layout="@layout/fragment_path" />
 
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.example.application.features.profile.ProfileFragment"
+        android:label="Profil"
+        tools:layout="@layout/fragment_profile">
+
+        <action
+            android:id="@+id/action_profile_to_auth"
+            app:destination="@id/authFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
+
 </navigation>
