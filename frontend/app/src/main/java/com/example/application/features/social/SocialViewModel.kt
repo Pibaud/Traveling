@@ -51,6 +51,13 @@ class SocialViewModel : ViewModel() {
     fun onNotificationToggleClicked(group: Group, enabled: Boolean) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
+        _popularGroups.value = _popularGroups.value?.map {
+            if (it.id == group.id) it.copy(isNotificationEnabled = enabled) else it
+        }
+
+        _myGroups.value = _myGroups.value?.map {
+            if (it.id == group.id) it.copy(isNotificationEnabled = enabled) else it
+        }
         viewModelScope.launch {
             try {
                 val request = NotificationToggleRequest(
@@ -62,9 +69,8 @@ class SocialViewModel : ViewModel() {
                 val response = RetrofitInstance.api.toggleGroupNotifications(request)
 
                 if (!response.isSuccessful) {
-                    // Si le serveur plante, on pourrait annuler le changement optimiste ici.
-                    // Pour simplifier, on loggue juste l'erreur pour l'instant.
                     Log.e("SocialViewModel", "Échec du serveur lors du toggle : ${response.code()}")
+                    // Optionnel : Si ça échoue, on pourrait refaire l'opération inverse ici pour annuler
                 }
             } catch (e: Exception) {
                 Log.e("SocialViewModel", "Erreur réseau toggle notification", e)
