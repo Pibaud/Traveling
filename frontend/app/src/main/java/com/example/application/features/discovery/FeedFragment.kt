@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.application.databinding.FragmentDiscoveryBinding
 import androidx.navigation.fragment.findNavController
 import com.example.application.R
-
+import com.google.android.material.tabs.TabLayout
 
 class FeedFragment : Fragment() {
 
@@ -39,10 +39,25 @@ class FeedFragment : Fragment() {
 
         setupRecyclerView()
         observeViewModel()
+        setupTabs() // <-- Ajoute cet appel
 
         binding.ivSearch.setOnClickListener {
             findNavController().navigate(R.id.action_feed_to_search)
         }
+    }
+
+    private fun setupTabs() {
+        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> viewModel.setTab("public") // Onglet Public
+                    1 -> viewModel.setTab("groups") // Onglet Mes Groupes
+                }
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
     }
 
     private fun setupRecyclerView() {

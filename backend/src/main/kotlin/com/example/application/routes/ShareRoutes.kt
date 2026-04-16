@@ -61,7 +61,8 @@ fun Route.shareRoutes() {
                     isPublic = request.isPublic,
                     tags = request.tags,
                     imageUrls = request.imageUrls,
-                    authorId = request.authorId
+                    authorId = request.authorId,
+                    groupIds = request.groupIds
                 )
 
                 if (success) {
@@ -76,10 +77,14 @@ fun Route.shareRoutes() {
 
         get("/feed") {
             try {
-                // On récupère l'ID de l'utilisateur passé en paramètre par Android
                 val currentUserId = call.request.queryParameters["userId"]
+                // On récupère le paramètre "tab" (par défaut "public")
+                val tab = call.request.queryParameters["tab"] ?: "public"
 
-                val feed = PostService.getFeed(currentUserId)
+                // Si tab vaut "groups", on active le filtre
+                val isGroupsOnly = (tab == "groups")
+
+                val feed = PostService.getFeed(currentUserId, isGroupsOnly)
                 call.respond(HttpStatusCode.OK, feed)
             } catch (e: Exception) {
                 application.log.error("Erreur feed", e)

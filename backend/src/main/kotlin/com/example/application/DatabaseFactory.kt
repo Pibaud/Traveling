@@ -144,3 +144,10 @@ object ItineraryLikes : Table("itinerary_likes") {
 
     override val primaryKey = PrimaryKey(userId, itineraryId)
 }
+
+object GroupPosts : Table("group_posts") {
+    val groupId = uuid("group_id").references(Groups.id, onDelete = ReferenceOption.CASCADE)
+    val postId = uuid("post_id").references(Posts.id, onDelete = ReferenceOption.CASCADE)
+
+    override val primaryKey = PrimaryKey(groupId, postId)
+}

@@ -15,23 +15,29 @@ class DiscoveryViewModel : ViewModel() {
 
     private val _posts = MutableLiveData<List<Post>>()
     val posts: LiveData<List<Post>> = _posts
+    private var currentTab = "public"
 
     init {
         // Au démarrage du ViewModel, on charge le feed
         loadMorePosts()
     }
 
+    fun setTab(tab: String) {
+        if (currentTab != tab) {
+            currentTab = tab
+            _posts.value = emptyList() // On vide la liste visuellement pendant le chargement
+            loadMorePosts()
+        }
+    }
+
     fun loadMorePosts() {
-        // 1. Récupérer l'ID de l'utilisateur connecté (s'il n'est pas connecté, on envoie une chaîne vide)
         val currentUserId = Firebase.auth.currentUser?.uid ?: ""
 
         viewModelScope.launch {
             try {
-                // 2. On passe l'ID à Retrofit !
-                val fetchedPosts = RetrofitInstance.api.getFeed(currentUserId)
-
+                // On passe le currentTab à la requête Retrofit
+                val fetchedPosts = RetrofitInstance.api.getFeed(currentUserId, currentTab)
                 _posts.value = fetchedPosts
-
                 Log.d("FeedNetwork", "Succès : ${fetchedPosts.size} posts récupérés")
             } catch (e: Exception) {
                 Log.e("FeedNetwork", "Erreur lors de la récupération du feed", e)

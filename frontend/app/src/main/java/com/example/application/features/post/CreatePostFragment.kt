@@ -36,6 +36,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
     private var selectedPlace: Place? = null
 
     private val selectedTags = mutableSetOf<String>()
+    private val selectedGroupIds = mutableSetOf<String>()
 
     // Données simulées pour l'instant (les URIs de tes photos)
     private val photosList = mutableListOf<String>()
@@ -88,6 +89,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         setupListeners()
         setupDragAndDrop()
         setupTagsLogic()
+        loadMyGroupsForSelection()
 
         // --- AJOUTE CETTE LIGNE ---
         binding.btnAddPhoto.setOnClickListener {
@@ -114,10 +116,14 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
     private fun isPostValid(): Boolean {
         val hasPhotos = photosList.isNotEmpty()
         val hasDescription = binding.etDescription.text.toString().trim().isNotEmpty()
-        val hasVisibility = binding.switchPublic.isChecked || binding.switchGroups.isChecked
-        val hasLocation = selectedPlace != null // On vérifie qu'un lieu est bien lié
+        val hasLocation = selectedPlace != null
 
-        return hasPhotos && hasDescription && hasVisibility && hasLocation
+        // NOUVELLE LOGIQUE DE VISIBILITÉ
+        val isPublicChecked = binding.switchPublic.isChecked
+        val isGroupChecked = binding.switchGroups.isChecked
+        val hasValidVisibility = isPublicChecked || (isGroupChecked && selectedGroupIds.isNotEmpty())
+
+        return hasPhotos && hasDescription && hasValidVisibility && hasLocation
     }
 
     private fun openGallery() {
@@ -179,7 +185,10 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
 
         // Surveille les switches
         binding.switchPublic.setOnCheckedChangeListener { _, _ -> validatePublishState() }
-        binding.switchGroups.setOnCheckedChangeListener { _, _ -> validatePublishState() }
+        binding.switchGroups.setOnCheckedChangeListener { _, isChecked ->
+            binding.hsvMyGroups.visibility = if (isChecked) View.VISIBLE else View.GONE
+            validatePublishState()
+        }
     }
 
     // --- LE MOTEUR DE DRAG & DROP ---
@@ -278,6 +287,37 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         binding.chipGroupTags.addView(chip)
     }
 
+    private fun loadMyGroupsForSelection() {
+        val currentUser = Firebase.auth.currentUser ?: return
+
+        lifecycleScope.launch {
+            try {
+                // On réutilise la route qu'on avait créée pour la page Social !
+                val myGroups = RetrofitInstance.api.getMyGroups(currentUser.uid)
+
+                binding.chipGroupMyGroups.removeAllViews()
+                myGroups.forEach { group ->
+                    val chip = Chip(requireContext()).apply {
+                        text = group.name
+                        isCheckable = true
+                        chipBackgroundColor = ContextCompat.getColorStateList(requireContext(), R.color.primary_color) // Optionnel : à adapter à tes couleurs
+                        setOnCheckedChangeListener { _, isChecked ->
+                            if (isChecked) {
+                                selectedGroupIds.add(group.id)
+                            } else {
+                                selectedGroupIds.remove(group.id)
+                            }
+                            validatePublishState()
+                        }
+                    }
+                    binding.chipGroupMyGroups.addView(chip)
+                }
+            } catch (e: Exception) {
+                // Si ça rate, c'est que l'utilisateur n'a pas de réseau
+            }
+        }
+    }
+
     private fun publishPost() {
         // 1. Vérifications de base
         val description = binding.etDescription.text.toString().trim()
@@ -307,7 +347,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
                     placeId = placeId,
                     tags = tags,
                     isPublic = isPublic,
-                    groupIds = emptyList(), // À gérer plus tard
+                    groupIds = selectedGroupIds.toList(),
                     imageUrls = uploadedImageUrls,
                     authorId = userId
                 )
