@@ -54,11 +54,14 @@
             app:boxCornerRadiusTopEnd="28dp"
             app:boxCornerRadiusBottomEnd="28dp"
             app:boxBackgroundColor="@android:color/white"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-            <com.google.android.material.textfield.TextInputEditText
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Rechercher un lieu" />
+            app:startIconDrawable="@drawable/round_search_24"
+            app:startIconTint="@color/primary_color"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"> <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            android:id="@+id/etSearchPlace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Rechercher un lieu"
+            android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
     </LinearLayout>
 
@@ -150,9 +153,10 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:padding="24dp"
+                android:paddingHorizontal="24dp"
+                android:paddingTop="24dp"
                 android:background="@android:color/white">
 
                 <View
@@ -183,10 +187,28 @@
                     android:id="@+id/btnSheetDetails"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="16dp"
                     android:text="Voir les détails"
                     app:cornerRadius="12dp"
                     android:backgroundTint="@color/primary_color"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Photos de la communauté"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvPlacePosts"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="8dp"
+                    android:clipToPadding="false"
+                    android:paddingBottom="24dp" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>

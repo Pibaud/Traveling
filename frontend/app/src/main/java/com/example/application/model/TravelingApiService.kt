@@ -13,6 +13,7 @@ import retrofit2.http.Query
 import com.example.application.model.Post
 import com.example.application.models.ItineraryResponse
 import retrofit2.Response
+import retrofit2.http.Path
 
 interface TravelingApiService {
     @GET("share/places/searchbbox")
@@ -28,6 +29,12 @@ interface TravelingApiService {
     suspend fun searchPlacesByName(
         @Query("q") query: String
     ): List<Place>
+
+    @GET("share/places/{id}/posts")
+    suspend fun getPlacePosts(
+        @Path("id") placeId: String,
+        @Query("userId") userId: String? = null
+    ): List<Post>
 
     @POST("share/publish")
     suspend fun publishPost(

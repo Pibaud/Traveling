@@ -43,6 +43,19 @@ fun Route.shareRoutes() {
             call.respond(places)
         }
 
+        get("/places/{id}/posts") {
+            val placeId = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "ID du lieu manquant")
+            val currentUserId = call.request.queryParameters["userId"]
+
+            try {
+                val posts = PostService.getPostsForPlace(placeId, currentUserId)
+                call.respond(HttpStatusCode.OK, posts)
+            } catch (e: Exception) {
+                application.log.error("Erreur récupération des posts du lieu", e)
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
+
         get("/tags/suggest") {
             val q = call.request.queryParameters["q"] ?: ""
             if (q.length < 2) return@get call.respond(emptyList<String>())
