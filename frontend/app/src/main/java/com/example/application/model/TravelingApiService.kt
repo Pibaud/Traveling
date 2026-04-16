@@ -1,4 +1,5 @@
 import com.example.application.model.CreateGroupRequest
+import com.example.application.model.GeneratePathRequest
 import com.example.application.model.Group
 import com.example.application.model.LikeRequest
 import com.example.application.model.LikeResponse
@@ -59,4 +60,7 @@ interface TravelingApiService {
         @Query("userId") userId: String,
         @Query("category") category: String
     ): List<ItineraryResponse>
+
+    @POST("path/generate")
+    suspend fun generatePath(@Body request: GeneratePathRequest): Response<List<ItineraryResponse>>
 }

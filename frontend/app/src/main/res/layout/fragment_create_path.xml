@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Personnalisez votre itinéraire"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Activités préférées"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupActivities"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:chipSpacingHorizontal="8dp"
+            android:layout_marginBottom="24dp">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipSport"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sport" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipCulture"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Culture" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipResto"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Restaurant" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipNature"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nature" />
+        </com.google.android.material.chip.ChipGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Budget maximum (€)"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etBudget"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint="Ex: 50" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:id="@+id/tvDurationLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Durée du séjour"
+            android:textStyle="bold" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderDuration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="1"
+            android:valueTo="14"
+            android:stepSize="1"
+            app:labelBehavior="always"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Niveau d'effort physique"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <RatingBar
+            android:id="@+id/ratingEffort"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:numStars="5"
+            android:stepSize="1"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tolérance météo (Pluie -> Soleil)"
+            android:textStyle="bold" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderWeather"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="2"
+            android:stepSize="1"
+            android:layout_marginBottom="32dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGenerate"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="Générer mon parcours"
+            android:textSize="16sp"
+            app:cornerRadius="12dp"
+            android:backgroundTint="#2D5A27" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

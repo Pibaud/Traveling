@@ -66,4 +66,23 @@
         android:label="Vos Parcours"
         tools:layout="@layout/fragment_path" />
 
+    <fragment
+        android:id="@+id/createPathFragment"
+        android:name="com.example.application.features.path.CreatePathFragment"
+        android:label="Personnalisation"
+        tools:layout="@layout/fragment_create_path">
+
+        <action
+            android:id="@+id/action_createPath_to_results"
+            app:destination="@id/pathResultsFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/pathResultsFragment"
+        android:name="com.example.application.features.path.PathResultsFragment"
+        android:label="Choix du parcours"
+        tools:layout="@layout/fragment_path_results" />
+
 </navigation>
