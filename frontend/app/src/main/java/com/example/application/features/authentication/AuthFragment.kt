@@ -41,7 +41,7 @@ class AuthFragment : Fragment(R.layout.fragment_auth) {
 
         // 3. Mode Anonyme (Inchangé)
         binding.btnAnonymous.setOnClickListener {
-            auth.signInAnonymously().addOnSuccessListener { navigateToFeed() }
+            handleAnonymousLogin()
         }
     }
 
@@ -106,6 +106,36 @@ class AuthFragment : Fragment(R.layout.fragment_auth) {
                 }
             }
             .addOnFailureListener { /* Toast erreur */ }
+    }
+
+    // Dans AuthFragment.kt
+
+    private fun handleAnonymousLogin() {
+        auth.signInAnonymously()
+            .addOnSuccessListener { authResult ->
+                val user = authResult.user
+                if (user != null) {
+                    // On synchronise cet utilisateur anonyme avec Ktor
+                    lifecycleScope.launch {
+                        try {
+                            val request = UserSyncRequest(
+                                uid = user.uid,
+                                email = "guest_${user.uid.take(5)}@traveling.com" // E-mail fictif pour satisfaire la DB
+                            )
+                            val response = RetrofitInstance.api.syncUser(request)
+
+                            if (response.isSuccessful) {
+                                navigateToFeed()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(requireContext(), "Erreur de synchro invité", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Échec : ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun navigateToFeed() {

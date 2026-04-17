@@ -13,6 +13,8 @@ import com.example.application.R
 import com.example.application.databinding.MainActivityBinding
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.example.application.utils.GuestUpsellBottomSheet // N'oublie pas l'import
+import androidx.navigation.ui.NavigationUI
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: MainActivityBinding
@@ -45,7 +47,19 @@ class MainActivity : AppCompatActivity() {
         navController.graph = navGraph
 
         // --- 2. GESTION DE LA BOTTOM NAV ---
-        binding.bottomNav.setupWithNavController(navController)
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+
+            // Si c'est un invité et qu'il clique sur Profil ou Itinéraires
+            if (isGuest && (item.itemId == R.id.profileFragment || item.itemId == R.id.itineraryFragment)) {
+                GuestUpsellBottomSheet().show(supportFragmentManager, "GuestUpsell")
+                return@setOnItemSelectedListener false // Bloque le changement d'onglet
+            }
+
+            // Sinon, on laisse Android gérer la navigation normale
+            NavigationUI.onNavDestinationSelected(item, navController)
+            true
+        }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             // Si on change d'écran, on referme le menu s'il était ouvert
@@ -70,6 +84,11 @@ class MainActivity : AppCompatActivity() {
     private fun setupFabMenu() {
         // Clic sur le bouton principal
         binding.fabAdd.setOnClickListener {
+            val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+            if (isGuest) {
+                GuestUpsellBottomSheet().show(supportFragmentManager, "GuestUpsell")
+                return@setOnClickListener // On arrête le code ici
+            }
             toggleFabMenu()
         }
 

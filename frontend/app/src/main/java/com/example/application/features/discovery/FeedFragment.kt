@@ -13,7 +13,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.application.databinding.FragmentDiscoveryBinding
 import androidx.navigation.fragment.findNavController
 import com.example.application.R
+import com.example.application.utils.GuestUpsellBottomSheet
 import com.google.android.material.tabs.TabLayout
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.*
 
 class FeedFragment : Fragment() {
 
@@ -49,6 +52,16 @@ class FeedFragment : Fragment() {
     private fun setupTabs() {
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
+                val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+
+                // Si invité et clique sur "Mes Groupes" (Position 1)
+                if (tab?.position == 1 && isGuest) {
+                    GuestUpsellBottomSheet().show(childFragmentManager, "GuestUpsell")
+                    // On le force à revenir sur l'onglet "Public"
+                    binding.tabLayout.selectTab(binding.tabLayout.getTabAt(0))
+                    return
+                }
+
                 when (tab?.position) {
                     0 -> viewModel.setTab("public") // Onglet Public
                     1 -> viewModel.setTab("groups") // Onglet Mes Groupes
