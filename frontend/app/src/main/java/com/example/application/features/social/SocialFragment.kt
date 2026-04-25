@@ -10,6 +10,10 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.application.R
 import com.example.application.databinding.FragmentSocialBinding
+import com.example.application.model.Group
+import com.example.application.utils.GuestUpsellBottomSheet
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 class SocialFragment : Fragment() {
 
@@ -34,16 +38,29 @@ class SocialFragment : Fragment() {
         setupRecyclerViews()
         observeViewModel()
 
-        // Le clic fonctionne à nouveau !
         binding.btnCreateGroup.setOnClickListener {
-            findNavController().navigate(R.id.action_social_to_createGroup)
+            val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+            if (isGuest) {
+                GuestUpsellBottomSheet().show(childFragmentManager, "GuestUpsell")
+            } else {
+                findNavController().navigate(R.id.action_social_to_createGroup)
+            }
         }
     }
 
     private fun setupRecyclerViews() {
         // 1. Adaptateur pour les Groupes Populaires (Horizontal)
+        val onJoinAttempt = { group: Group ->
+            val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+            if (isGuest) {
+                GuestUpsellBottomSheet().show(childFragmentManager, "GuestUpsell")
+            } else {
+                viewModel.onJoinGroupClicked(group)
+            }
+        }
+
         popularAdapter = GroupAdapter(
-            onJoinClick = { group -> viewModel.onJoinGroupClicked(group) },
+            onJoinClick = onJoinAttempt,
             onNotificationClick = { group, enabled -> viewModel.onNotificationToggleClicked(group, enabled) }
         )
         binding.rvPopularGroups.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
@@ -74,6 +91,12 @@ class SocialFragment : Fragment() {
                 binding.rvMyGroups.visibility = View.VISIBLE
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Force le rechargement avec le véritable utilisateur actuel de Firebase
+        viewModel.loadGroups()
     }
 
     override fun onDestroyView() {

@@ -1,6 +1,7 @@
 import com.example.application.model.CreateGroupRequest
 import com.example.application.model.GeneratePathRequest
 import com.example.application.model.Group
+import com.example.application.model.JoinGroupRequest
 import com.example.application.model.LikeRequest
 import com.example.application.model.LikeResponse
 import com.example.application.model.NotificationToggleRequest
@@ -13,6 +14,7 @@ import retrofit2.http.Query
 import com.example.application.model.Post
 import com.example.application.models.ItineraryResponse
 import retrofit2.Response
+import retrofit2.http.Path
 
 interface TravelingApiService {
     @GET("share/places/searchbbox")
@@ -29,13 +31,22 @@ interface TravelingApiService {
         @Query("q") query: String
     ): List<Place>
 
+    @GET("share/places/{id}/posts")
+    suspend fun getPlacePosts(
+        @Path("id") placeId: String,
+        @Query("userId") userId: String? = null
+    ): List<Post>
+
     @POST("share/publish")
     suspend fun publishPost(
         @Body request: CreatePostRequest // <-- Remplacement total du Multipart
     ): Response<Unit>
 
     @GET("share/feed")
-    suspend fun getFeed(@Query("userId") userId: String): List<Post>
+    suspend fun getFeed(
+        @Query("userId") userId: String,
+        @Query("tab") tab: String
+    ): List<Post>
 
     @POST("share/like")
     suspend fun toggleLike(@Body request: LikeRequest): LikeResponse
@@ -54,6 +65,9 @@ interface TravelingApiService {
 
     @POST("share/groups/notifications")
     suspend fun toggleGroupNotifications(@Body request: NotificationToggleRequest): Response<Unit>
+
+    @POST("share/groups/join")
+    suspend fun joinGroup(@Body request: JoinGroupRequest): Response<Map<String, String>>
 
     @GET("path/list")
     suspend fun getPathList(

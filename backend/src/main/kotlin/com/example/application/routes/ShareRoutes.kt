@@ -3,6 +3,7 @@ package com.example.application.routes
 import com.example.application.models.CreateGroupRequest
 import com.example.application.models.CreatePostRequest
 import com.example.application.models.LikeRequest
+import com.example.application.models.JoinGroupRequest
 import com.example.application.models.NotificationToggleRequest
 import com.example.application.services.GroupService
 import com.example.application.services.PlaceService
@@ -42,6 +43,19 @@ fun Route.shareRoutes() {
             call.respond(places)
         }
 
+        get("/places/{id}/posts") {
+            val placeId = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "ID du lieu manquant")
+            val currentUserId = call.request.queryParameters["userId"]
+
+            try {
+                val posts = PostService.getPostsForPlace(placeId, currentUserId)
+                call.respond(HttpStatusCode.OK, posts)
+            } catch (e: Exception) {
+                application.log.error("Erreur récupération des posts du lieu", e)
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
+
         get("/tags/suggest") {
             val q = call.request.queryParameters["q"] ?: ""
             if (q.length < 2) return@get call.respond(emptyList<String>())
@@ -60,7 +74,8 @@ fun Route.shareRoutes() {
                     isPublic = request.isPublic,
                     tags = request.tags,
                     imageUrls = request.imageUrls,
-                    authorId = request.authorId
+                    authorId = request.authorId,
+                    groupIds = request.groupIds
                 )
 
                 if (success) {
@@ -75,10 +90,14 @@ fun Route.shareRoutes() {
 
         get("/feed") {
             try {
-                // On récupère l'ID de l'utilisateur passé en paramètre par Android
                 val currentUserId = call.request.queryParameters["userId"]
+                // On récupère le paramètre "tab" (par défaut "public")
+                val tab = call.request.queryParameters["tab"] ?: "public"
 
-                val feed = PostService.getFeed(currentUserId)
+                // Si tab vaut "groups", on active le filtre
+                val isGroupsOnly = (tab == "groups")
+
+                val feed = PostService.getFeed(currentUserId, isGroupsOnly)
                 call.respond(HttpStatusCode.OK, feed)
             } catch (e: Exception) {
                 application.log.error("Erreur feed", e)
@@ -128,6 +147,18 @@ fun Route.shareRoutes() {
             val request = call.receive<NotificationToggleRequest>()
             val success = GroupService.toggleNotification(request.groupId, request.userId, request.shouldNotify)
             if (success) call.respond(HttpStatusCode.OK) else call.respond(HttpStatusCode.NotFound)
+        }
+
+        post("/groups/join") {
+            val request = call.receive<JoinGroupRequest>()
+            val resultStatus = GroupService.joinGroup(request.groupId, request.userId)
+
+            if (resultStatus == "NOT_FOUND") {
+                call.respond(HttpStatusCode.NotFound, "Groupe introuvable")
+            } else {
+                // On renvoie le statut pour que le téléphone sache quoi afficher
+                call.respond(HttpStatusCode.OK, mapOf("status" to resultStatus))
+            }
         }
     }
 }

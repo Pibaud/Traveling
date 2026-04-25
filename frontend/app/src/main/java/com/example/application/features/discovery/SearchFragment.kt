@@ -36,10 +36,13 @@ import android.graphics.drawable.BitmapDrawable
 import com.mapbox.mapboxsdk.style.expressions.Expression.color
 import com.mapbox.mapboxsdk.style.expressions.Expression.match
 import com.mapbox.mapboxsdk.style.expressions.Expression.stop
+import com.example.application.utils.setupPlaceAutocomplete
+import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
+    private lateinit var placePostsAdapter: PlacePostsAdapter
 
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<CardView>
 
@@ -96,6 +99,44 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         binding.btnToggleMap.setOnClickListener {
             switchToMapView()
+        }
+
+        binding.etSearchPlace.setupPlaceAutocomplete(
+            coroutineScope = viewLifecycleOwner.lifecycleScope,
+            apiService = RetrofitInstance.api // On utilise la même instance Retrofit que dans ton ViewModel
+        ) { selectedPlace ->
+
+            // Étape A : Si l'utilisateur était en vue grille, on bascule sur la carte
+            if (binding.rvSearchGrid.visibility == View.VISIBLE) {
+                switchToMapView()
+            }
+
+            // Étape B : On affiche les détails en bas de l'écran
+            showBottomSheet(selectedPlace)
+
+            // Étape C : On déplace la caméra de la carte avec une belle animation
+            binding.mapView.getMapAsync { map ->
+                val position = CameraPosition.Builder()
+                    .target(LatLng(selectedPlace.latitude, selectedPlace.longitude))
+                    .zoom(15.0) // Un zoom assez proche pour voir le quartier
+                    .build()
+
+                map.animateCamera(CameraUpdateFactory.newCameraPosition(position), 1500) // Animation sur 1.5 seconde
+            }
+
+            // Facultatif : Remettre le texte proprement sans déclencher de nouvelle recherche
+            binding.etSearchPlace.setText(selectedPlace.name, false)
+            binding.etSearchPlace.clearFocus()
+        }
+
+        placePostsAdapter = PlacePostsAdapter()
+        binding.rvPlacePosts.layoutManager = GridLayoutManager(requireContext(), 3) // 3 photos par ligne
+        binding.rvPlacePosts.adapter = placePostsAdapter
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.placePosts.collect { posts ->
+                placePostsAdapter.submitList(posts)
+            }
         }
     }
 
@@ -249,15 +290,13 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private fun showBottomSheet(place: Place) {
         binding.apply {
             tvSheetName.text = place.name
-
-            // Mettre en majuscule la première lettre (ex: CULTURE -> Culture)
             val categoryText = place.category.name.lowercase().replaceFirstChar { it.uppercase() }
             tvSheetCategory.text = categoryText
-
-            // Tu pourras changer la couleur du texte selon la catégorie ici si tu veux
         }
 
-        // Fait glisser la vue vers le haut
+        // --- NOUVEAU : On demande au ViewModel de charger les photos ---
+        viewModel.fetchPostsForPlace(place.id)
+
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
     }
 

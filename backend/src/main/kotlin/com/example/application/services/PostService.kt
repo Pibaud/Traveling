@@ -1,6 +1,7 @@
 package com.example.application.services
 
 import com.example.application.DatabaseFactory.dbQuery
+import com.example.application.GroupPosts
 import com.example.application.Posts
 import com.example.application.PostTags
 import com.example.application.Tags
@@ -14,6 +15,9 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import java.util.UUID
+import com.example.application.Groups
+import org.jetbrains.exposed.sql.SqlExpressionBuilder
+import org.jetbrains.exposed.sql.update
 
 object PostService {
 
@@ -23,7 +27,8 @@ object PostService {
         isPublic: Boolean,
         tags: List<String>,
         imageUrls: List<String>,
-        authorId: String = "anonymous" // Tu récupéreras l'ID Firebase plus tard
+        authorId: String = "anonymous",
+        groupIds: List<String> = emptyList()
     ): Boolean = dbQuery {
         try {
             // 1. Insertion du Post
@@ -50,6 +55,23 @@ object PostService {
                     it[PostTags.tagId] = tagId // Ici, PostTags.tagId est la colonne, tagId est ta variable
                 }
             }
+            // 3. NOUVEAU : Lier le post aux groupes sélectionnés
+            groupIds.forEach { groupIdStr ->
+                val groupUuid = java.util.UUID.fromString(groupIdStr)
+
+                // On insère la liaison dans la table Many-to-Many
+                GroupPosts.insert {
+                    it[groupId] = groupUuid
+                    it[postId] = insertedPostId
+                }
+
+                // --- NOUVEAU : On incrémente le compteur nb_posts du groupe ---
+                Groups.update({ Groups.id eq groupUuid }) {
+                    with(SqlExpressionBuilder) {
+                        it.update(nbPosts, nbPosts + 1)
+                    }
+                }
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -58,8 +80,8 @@ object PostService {
     }
 
     // 1. On ajoute currentUserId en paramètre
-    suspend fun getFeed(currentUserId: String?): List<Post> = dbQuery {
-        val sql = """
+    suspend fun getFeed(currentUserId: String?, isGroupsOnly: Boolean = false): List<Post> = dbQuery {
+        val baseSql = """
             SELECT 
                 p.id as post_id, 
                 p.author_id, 
@@ -83,23 +105,44 @@ object PostService {
             FROM posts p
             LEFT JOIN users u ON p.author_id = u.firebase_id
             LEFT JOIN places pl ON p.place_id = pl.id
-            WHERE p.is_public = true
-            ORDER BY p.created_at DESC
-            LIMIT 20
         """.trimIndent()
+
+        val sql: String
+        val args: List<Pair<org.jetbrains.exposed.sql.IColumnType, Any>>
+
+        if (isGroupsOnly && currentUserId != null) {
+            // AJOUT D'UN ESPACE AVANT LE WHERE
+            sql = baseSql + " WHERE EXISTS (" + """
+            SELECT 1 FROM group_posts gp
+            JOIN group_members gm ON gp.group_id = gm.group_id
+            WHERE gp.post_id = p.id AND gm.user_id = ? AND gm.status = 'ACCEPTED'
+        )
+        ORDER BY p.created_at DESC
+        LIMIT 20
+    """.trimIndent()
+
+            args = listOf(
+                org.jetbrains.exposed.sql.VarCharColumnType() to currentUserId,
+                org.jetbrains.exposed.sql.VarCharColumnType() to currentUserId
+            )
+        } else {
+            // AJOUT D'UN ESPACE AVANT LE WHERE
+            sql = baseSql + " WHERE p.is_public = true " + """
+        ORDER BY p.created_at DESC
+        LIMIT 20
+    """.trimIndent()
+
+            args = listOf(
+                org.jetbrains.exposed.sql.VarCharColumnType() to (currentUserId ?: "") // Pour "is_liked_by_me"
+            )
+        }
 
         val results = mutableListOf<Post>()
 
-        // 2. On passe l'argument (currentUserId) à la requête pour remplacer le '?'
-        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
-            sql,
-            args = listOf(org.jetbrains.exposed.sql.VarCharColumnType() to (currentUserId ?: ""))
-        ) { rs ->
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(sql, args = args) { rs ->
             while (rs.next()) {
                 val imageUrlsStr = rs.getString("image_urls") ?: ""
                 val tagsStr = rs.getString("tags_list") ?: ""
-
-                // 3. On extrait le boolean de la base de données
                 val isLikedByMe = rs.getBoolean("is_liked_by_me")
 
                 val place = Place(
@@ -109,9 +152,7 @@ object PostService {
                     longitude = rs.getDouble("place_lng"),
                     category = try {
                         PlaceCategory.valueOf(rs.getString("place_category")?.uppercase() ?: "CULTURE")
-                    } catch (e: Exception) {
-                        PlaceCategory.CULTURE
-                    }
+                    } catch (e: Exception) { PlaceCategory.CULTURE }
                 )
 
                 results.add(
@@ -127,7 +168,7 @@ object PostService {
                         tags = if (tagsStr.isNotBlank()) tagsStr.split(",") else emptyList(),
                         timestamp = rs.getLong("timestamp"),
                         place = place,
-                        isLikedByMe = isLikedByMe // 4. On l'injecte dans l'objet Kotlin
+                        isLikedByMe = isLikedByMe
                     )
                 )
             }
@@ -161,5 +202,75 @@ object PostService {
             }
             true // On retourne true pour dire "C'est liké"
         }
+    }
+
+    suspend fun getPostsForPlace(placeIdStr: String, currentUserId: String? = null): List<Post> = dbQuery {
+        val sql = """
+            SELECT 
+                p.id as post_id, 
+                p.author_id, 
+                p.description, 
+                p.image_urls, 
+                (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
+                EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked_by_me,
+                CAST(EXTRACT(EPOCH FROM p.created_at) * 1000 AS BIGINT) as timestamp,
+                u.username as author_name,
+                pl.id as place_id, 
+                pl.name as place_name, 
+                pl.category as place_category, 
+                ST_Y(pl.location::geometry) as place_lat, 
+                ST_X(pl.location::geometry) as place_lng,
+                (
+                    SELECT STRING_AGG(t.name, ',') 
+                    FROM post_tags pt 
+                    JOIN tags t ON pt.tag_id = t.id 
+                    WHERE pt.post_id = p.id
+                ) as tags_list
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.firebase_id
+            LEFT JOIN places pl ON p.place_id = pl.id
+            WHERE p.place_id = ? AND p.is_public = true
+            ORDER BY p.created_at DESC
+        """.trimIndent()
+
+        val args = listOf(
+            org.jetbrains.exposed.sql.VarCharColumnType() to (currentUserId ?: ""),
+            org.jetbrains.exposed.sql.VarCharColumnType() to placeIdStr
+        )
+
+        val results = mutableListOf<Post>()
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(sql, args = args) { rs ->
+            while (rs.next()) {
+                val imageUrlsStr = rs.getString("image_urls") ?: ""
+                val tagsStr = rs.getString("tags_list") ?: ""
+
+                // On recrée l'objet Place rapidement
+                val place = Place(
+                    id = rs.getString("place_id") ?: "",
+                    name = rs.getString("place_name") ?: "",
+                    latitude = rs.getDouble("place_lat"),
+                    longitude = rs.getDouble("place_lng"),
+                    category = try { PlaceCategory.valueOf(rs.getString("place_category")?.uppercase() ?: "CULTURE") } catch (e: Exception) { PlaceCategory.CULTURE }
+                )
+
+                results.add(
+                    Post(
+                        id = rs.getString("post_id"),
+                        authorId = rs.getString("author_id") ?: "",
+                        authorName = rs.getString("author_name") ?: "Anonyme",
+                        authorAvatarUrl = "",
+                        description = rs.getString("description") ?: "",
+                        imageUrls = if (imageUrlsStr.isNotBlank()) imageUrlsStr.split(",") else emptyList(),
+                        likesCount = rs.getInt("likes_count"),
+                        commentsCount = 0,
+                        tags = if (tagsStr.isNotBlank()) tagsStr.split(",") else emptyList(),
+                        timestamp = rs.getLong("timestamp"),
+                        place = place,
+                        isLikedByMe = rs.getBoolean("is_liked_by_me")
+                    )
+                )
+            }
+        }
+        results
     }
 }
