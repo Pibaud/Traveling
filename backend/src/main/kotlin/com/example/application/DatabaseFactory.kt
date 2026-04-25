@@ -140,3 +140,16 @@ object ItineraryLikes : Table("itinerary_likes") {
 
     override val primaryKey = PrimaryKey(userId, itineraryId)
 }
+
+object Places : Table("places") { // Bien mettre "places" avec un 's'
+    val id = varchar("id", 50)
+    val name = varchar("name", 255)
+    val category = varchar("category", 50)
+    // val location = ... (On verra comment ton ami l'a gérée si besoin)
+    val price = integer("price")
+    val effort = integer("effort")
+    val meteo = text("meteo").nullable()
+    val duration = integer("duration")
+
+    override val primaryKey = PrimaryKey(id)
+}

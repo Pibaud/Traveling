@@ -89,7 +89,10 @@ class MainActivity : AppCompatActivity() {
         // Clic sur Créer un Itinéraire
         binding.fabItinerary.setOnClickListener {
             toggleFabMenu()
-            // TODO: Naviguer vers la création d'itinéraire
+            // Naviguer vers la création d'itinéraire
+            val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+            val navController = navHostFragment.navController
+            navController.navigate(R.id.createPathFragment)
         }
     }
 

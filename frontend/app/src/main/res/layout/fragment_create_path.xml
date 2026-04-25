@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white">
@@ -23,7 +24,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Activités préférées"
+            android:text="Types d'activités"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
@@ -34,34 +35,28 @@
             app:chipSpacingHorizontal="8dp"
             android:layout_marginBottom="24dp">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipSport"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Sport" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipCulture"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Culture" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipResto"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Restaurant" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipNature"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Nature" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipSport" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sport" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipCulture" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Culture" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipResto" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Restaurant" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipNature" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nature" />
         </com.google.android.material.chip.ChipGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Inclure vos lieux favoris"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvLikedPlaces"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:clipToPadding="false"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_liked_place_thumbnail"
+            android:layout_marginBottom="24dp"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -75,7 +70,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp">
-
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etBudget"
                 android:layout_width="match_parent"
@@ -85,43 +79,99 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
-            android:id="@+id/tvDurationLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Durée du séjour"
-            android:textStyle="bold" />
+            android:text="Durée de l'itinéraire"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
 
-        <com.google.android.material.slider.Slider
-            android:id="@+id/sliderDuration"
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupDuration"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:valueFrom="1"
-            android:valueTo="14"
-            android:stepSize="1"
-            app:labelBehavior="always"
-            android:layout_marginBottom="24dp" />
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            android:layout_marginBottom="24dp">
+
+            <com.google.android.material.chip.Chip android:id="@+id/chipDur1h" style="@style/Widget.MaterialComponents.Chip.Choice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1h" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDur2h" style="@style/Widget.MaterialComponents.Chip.Choice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2h" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDur3h" style="@style/Widget.MaterialComponents.Chip.Choice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="3h" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDurHalf" style="@style/Widget.MaterialComponents.Chip.Choice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Demi-journée" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDurDay" style="@style/Widget.MaterialComponents.Chip.Choice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1 Journée" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipDurWeekend" style="@style/Widget.MaterialComponents.Chip.Choice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Week-end" />
+        </com.google.android.material.chip.ChipGroup>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Niveau d'effort physique"
+            android:text="Niveau d'effort"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
-        <RatingBar
-            android:id="@+id/ratingEffort"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:numStars="5"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvEffortIcon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="28sp"
+                tools:text="🚶" />
+
+            <TextView
+                android:id="@+id/tvEffortText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_color"
+                tools:text="Balade tranquille" />
+        </LinearLayout>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderEffort"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="1"
+            android:valueTo="3"
             android:stepSize="1"
-            android:layout_gravity="center_horizontal"
+            app:labelBehavior="gone"
             android:layout_marginBottom="24dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Tolérance météo (Pluie -> Soleil)"
-            android:textStyle="bold" />
+            android:text="Météo tolérée"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvWeatherIcon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="28sp"
+                tools:text="☀️" />
+
+            <TextView
+                android:id="@+id/tvWeatherText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#E59866"
+                tools:text="Grand soleil uniquement" />
+        </LinearLayout>
 
         <com.google.android.material.slider.Slider
             android:id="@+id/sliderWeather"
@@ -130,6 +180,7 @@
             android:valueFrom="0"
             android:valueTo="2"
             android:stepSize="1"
+            app:labelBehavior="gone"
             android:layout_marginBottom="32dp" />
 
         <com.google.android.material.button.MaterialButton

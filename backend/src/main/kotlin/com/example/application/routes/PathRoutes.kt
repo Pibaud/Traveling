@@ -2,22 +2,15 @@ package com.example.application.routes
 
 import com.example.application.models.GeneratePathRequest
 import com.example.application.models.ItineraryResponse
-import com.example.application.models.PathRequest
-import com.example.application.models.PathResponse
 import com.example.application.services.PathService
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.json.Json
 
 fun Route.pathRoutes() {
     route("/path") {
-        // Endpoint pour générer les 2-3 options de parcours (Eco, Confort...)
-        post("/generate") {
-            val request = call.receive<PathRequest>()
-            // Ici l'appel à votre algorithme complexe
-            val result = listOf<PathResponse>() // Simulation de réponse
-            call.respond(result)
-        }
 
         // Endpoint pour l'export PDF mentionné dans le sujet
         get("/export/{id}") {
@@ -33,16 +26,24 @@ fun Route.pathRoutes() {
 
         // Dans PathRoutes.kt
         post("/generate") {
-            val request = call.receive<GeneratePathRequest>()
+            try {
+                // On récupère le texte brut pour le log en cas d'erreur
+                val bodyText = call.receiveText()
 
-            // Simulation des 3 parcours types de la maquette
-            val simulation = listOf(
-                ItineraryResponse(1, "Eco", "#2D5A27", 8, 5, true),       // 8€, 5h, repas compris [cite: 234, 246]
-                ItineraryResponse(2, "Équilibré", "#E59866", 40, 24, true), // 40€, 1 journée [cite: 242, 248]
-                ItineraryResponse(3, "Confort", "#884154", 300, 48, true)  // 300€, 2 jours [cite: 245, 252]
-            )
+                // On convertit manuellement pour attraper l'erreur précise
+                val request = Json.decodeFromString<GeneratePathRequest>(bodyText)
 
-            call.respond(simulation)
+                // Simulation pour l'instant
+                val simulation = listOf(
+                    ItineraryResponse(1, "Eco", "#2D5A27", 8, 5, true, 3.0),
+                    ItineraryResponse(2, "Équilibré", "#E59866", 40, 24, true, 3.0),
+                    ItineraryResponse(3, "Confort", "#884154", 300, 48, true, 3.0)
+                )
+                call.respond(simulation)
+            } catch (e: Exception) {
+                println("ERREUR DETAIL : ${e.localizedMessage}")
+                call.respond(HttpStatusCode.BadRequest, "Erreur de format : ${e.localizedMessage}")
+            }
         }
     }
 }

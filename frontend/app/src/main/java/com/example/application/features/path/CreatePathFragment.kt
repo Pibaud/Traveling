@@ -3,14 +3,13 @@ package com.example.application.features.path
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import com.example.application.R
 import com.example.application.databinding.FragmentCreatePathBinding
 import com.example.application.model.GeneratePathRequest
-import androidx.lifecycle.lifecycleScope
-import com.example.application.R
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.launch
-import androidx.navigation.fragment.findNavController
-
 
 class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
     private var _binding: FragmentCreatePathBinding? = null
@@ -20,22 +19,91 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentCreatePathBinding.bind(view)
 
+        setupDynamicVisuals()
+
         binding.btnGenerate.setOnClickListener {
             val request = GeneratePathRequest(
                 activities = getSelectedActivities(),
                 budgetMax = binding.etBudget.text.toString().toIntOrNull() ?: 100,
-                durationDays = binding.sliderDuration.value.toInt(),
-                effortLevel = binding.ratingEffort.rating.toInt(),
+                // On utilise notre nouvelle fonction pour lire les "chips"
+                durationDays = getSelectedDurationInHours(),
+                // Le nom a changé en XML : c'est sliderEffort maintenant
+                effortLevel = binding.sliderEffort.value.toInt(),
                 weatherTolerance = binding.sliderWeather.value.toInt()
             )
 
             lifecycleScope.launch {
-                val response = RetrofitInstance.api.generatePath(request)
+                try {
+                    val response = RetrofitInstance.api.generatePath(request)
                     if (response.isSuccessful) {
                         PathResultsFragment.tempResults = response.body() ?: emptyList()
                         findNavController().navigate(R.id.action_createPath_to_results)
+                    } else {
+                        // Utile pour débugger
+                        println("Erreur API : ${response.code()}")
                     }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
+        }
+    }
+
+    // --- Fonction pour l'animation des Emojis ---
+    private fun setupDynamicVisuals() {
+        // Initialisation par défaut
+        binding.tvEffortIcon.text = "🚶"
+        binding.tvEffortText.text = "Balade tranquille"
+        binding.tvWeatherIcon.text = "☀️"
+        binding.tvWeatherText.text = "Grand soleil"
+
+        // Quand on bouge le curseur d'effort
+        binding.sliderEffort.addOnChangeListener { _, value, _ ->
+            when (value.toInt()) {
+                1 -> {
+                    binding.tvEffortIcon.text = "🚶"
+                    binding.tvEffortText.text = "Balade tranquille"
+                }
+                2 -> {
+                    binding.tvEffortIcon.text = "🥾"
+                    binding.tvEffortText.text = "Marche active"
+                }
+                3 -> {
+                    binding.tvEffortIcon.text = "🧗"
+                    binding.tvEffortText.text = "Sportif intense"
+                }
+            }
+        }
+
+        // Quand on bouge le curseur météo
+        binding.sliderWeather.addOnChangeListener { _, value, _ ->
+            when (value.toInt()) {
+                0 -> {
+                    binding.tvWeatherIcon.text = "☀️"
+                    binding.tvWeatherText.text = "Grand soleil uniquement"
+                }
+                1 -> {
+                    binding.tvWeatherIcon.text = "⛅"
+                    binding.tvWeatherText.text = "Grisaille tolérée"
+                }
+                2 -> {
+                    binding.tvWeatherIcon.text = "🌧️"
+                    binding.tvWeatherText.text = "Pluie ? Pas un problème !"
+                }
+            }
+        }
+    }
+
+    // --- Fonction pour convertir les choix de durée en Int (Heures) ---
+    private fun getSelectedDurationInHours(): Int {
+        return when (binding.chipGroupDuration.checkedChipId) {
+            R.id.chipDur1h -> 1
+            R.id.chipDur2h -> 2
+            R.id.chipDur3h -> 3
+            R.id.chipDurHalf -> 4  // Considérons 4h pour une demi-journée
+            R.id.chipDurDay -> 24  // 24h pour 1 journée
+            R.id.chipDurWeekend -> 48 // 48h pour un week-end
+            else -> 1 // Valeur par défaut de sécurité
         }
     }
 
@@ -43,5 +111,10 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         return binding.chipGroupActivities.checkedChipIds.map { id ->
             binding.root.findViewById<Chip>(id).text.toString()
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }
