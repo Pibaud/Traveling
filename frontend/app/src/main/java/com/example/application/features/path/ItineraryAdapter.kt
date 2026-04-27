@@ -10,8 +10,10 @@ import com.example.application.R
 import com.example.application.model.ItineraryResponse
 import com.google.android.material.card.MaterialCardView
 
-class ItineraryAdapter(private val items: List<ItineraryResponse>) :
-    RecyclerView.Adapter<ItineraryAdapter.ViewHolder>() {
+class ItineraryAdapter(
+    private val items: List<ItineraryResponse>,
+    private val onItemClick: (ItineraryResponse) -> Unit
+) : RecyclerView.Adapter<ItineraryAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val card: MaterialCardView = view.findViewById(R.id.cardItinerary)
@@ -43,9 +45,10 @@ class ItineraryAdapter(private val items: List<ItineraryResponse>) :
             holder.card.setCardBackgroundColor(Color.DKGRAY)
         }
 
+        // LA CORRECTION EST ICI 👇
+        // On renvoie simplement l'item cliqué au Fragment, qui lui s'occupe du BottomSheet !
         holder.card.setOnClickListener {
-            val bottomSheet = ItineraryDetailsBottomSheet(item)
-            // Il faut passer le fragment manager de l'activité, on verra comment faire proprement !
+            onItemClick(item)
         }
     }
 

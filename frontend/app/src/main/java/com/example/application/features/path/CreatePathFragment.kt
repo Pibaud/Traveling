@@ -23,11 +23,10 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
 
         binding.btnGenerate.setOnClickListener {
             val request = GeneratePathRequest(
-                activities = getSelectedActivities(),
+                categories = getSelectedActivities(), // Ancien 'activities'
+                selectedPlaceIds = emptyList(),       // On envoie une liste vide pour l'instant
                 budgetMax = binding.etBudget.text.toString().toIntOrNull() ?: 100,
-                // On utilise notre nouvelle fonction pour lire les "chips"
-                durationDays = getSelectedDurationInHours(),
-                // Le nom a changé en XML : c'est sliderEffort maintenant
+                durationHours = getSelectedDurationInHours(), // Ancien 'durationDays'
                 effortLevel = binding.sliderEffort.value.toInt(),
                 weatherTolerance = binding.sliderWeather.value.toInt()
             )

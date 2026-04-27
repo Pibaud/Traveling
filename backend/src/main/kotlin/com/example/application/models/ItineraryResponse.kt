@@ -2,6 +2,8 @@ package com.example.application.models
 
 import kotlinx.serialization.Serializable
 
+import com.example.application.model.Place
+
 @Serializable
 data class ItineraryResponse(
     val id: Int = 0,

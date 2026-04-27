@@ -12,7 +12,8 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 import com.example.application.model.Post
-import com.example.application.models.ItineraryResponse
+import com.example.application.model.ItineraryResponse
+import com.example.application.model.SavePathRequest
 import retrofit2.Response
 import retrofit2.http.Path
 
@@ -77,4 +78,7 @@ interface TravelingApiService {
 
     @POST("path/generate")
     suspend fun generatePath(@Body request: GeneratePathRequest): Response<List<ItineraryResponse>>
+
+    @POST("path/save") // Assure-toi que c'est bien la route que tu as mise dans ton backend Ktor
+    suspend fun savePath(@Body request: SavePathRequest): Response<Unit>
 }

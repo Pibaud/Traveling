@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class GeneratePathRequest(
-    val categories: List<String>,      // ex: ["Sport", "Nature"]
-    val selectedPlaceIds: List<Int>,   // ex: [12, 45] (les lieux likés forcés)
+    val categories: List<String>,
+    val selectedPlaceIds: List<String> = emptyList(),
     val budgetMax: Int,
     val durationHours: Int,
     val effortLevel: Int,

@@ -8,9 +8,9 @@ import com.example.application.Tags
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import com.example.application.models.Post
-import com.example.application.models.Place
+import com.example.application.model.Place
 import com.example.application.PostLikes
-import com.example.application.models.PlaceCategory
+import com.example.application.model.PlaceCategory
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere

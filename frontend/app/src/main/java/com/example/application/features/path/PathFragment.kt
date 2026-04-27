@@ -24,13 +24,25 @@ class PathFragment : Fragment(R.layout.fragment_path) { // Assure-toi d'avoir fr
         lifecycleScope.launch {
             try {
                 // 1. Récupérer "Mes itinéraires" [cite: 287]
-                val myPaths = RetrofitInstance.api.getPathList(userId, "MINE")
-                binding.rvMyItineraries.adapter = ItineraryAdapter(myPaths)
+                try {
+                    // 1. Récupérer "Mes itinéraires"
+                    val myPaths = RetrofitInstance.api.getPathList(userId, category = "MINE")
+                    binding.rvMyItineraries.adapter = ItineraryAdapter(myPaths) { selectedItinerary ->
+                        // On ouvre le volet quand on clique
+                        val detailsSheet = ItineraryDetailsBottomSheet(selectedItinerary)
+                        detailsSheet.show(parentFragmentManager, "ItineraryDetails")
+                    }
 
-                // 2. Récupérer "Enregistrés" [cite: 291]
-                val savedPaths = RetrofitInstance.api.getPathList(userId, "SAVED")
-                binding.rvSaved.adapter = ItineraryAdapter(savedPaths)
-
+                    // 2. Récupérer "Enregistrés"
+                    val savedPaths = RetrofitInstance.api.getPathList(userId, category = "SAVED")
+                    binding.rvSaved.adapter = ItineraryAdapter(savedPaths) { selectedItinerary ->
+                        // Pareil ici
+                        val detailsSheet = ItineraryDetailsBottomSheet(selectedItinerary)
+                        detailsSheet.show(parentFragmentManager, "ItineraryDetails")
+                    }
+                } catch (e: Exception) {
+                    // Gérer l'erreur
+                }
             } catch (e: Exception) {
                 // Gérer l'erreur
             }

@@ -1,8 +1,8 @@
 package com.example.application.services
 
 import com.example.application.DatabaseFactory
-import com.example.application.models.Place        // Vérifie bien ton package model
-import com.example.application.models.PlaceCategory
+import com.example.application.model.Place        // Vérifie bien ton package model
+import com.example.application.model.PlaceCategory
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.ResultSet
 
@@ -11,9 +11,10 @@ object PlaceService {
     suspend fun searchByBoundingBox(minLat: Double, minLng: Double, maxLat: Double, maxLng: Double): List<Place> {
         return DatabaseFactory.dbQuery {
             val sql = """
-                SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng 
+                SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng, price, duration, effort 
                 FROM places 
-                WHERE location && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                WHERE name ILIKE ? 
+                LIMIT ?
             """.trimIndent()
 
             val results = mutableListOf<Place>()
@@ -35,11 +36,10 @@ object PlaceService {
                         name = rs.getString("name"),
                         latitude = rs.getDouble("lat"),
                         longitude = rs.getDouble("lng"),
-                        category = try {
-                            PlaceCategory.valueOf(rs.getString("category").uppercase())
-                        } catch (e: Exception) {
-                            PlaceCategory.CULTURE
-                        }
+                        category = try { PlaceCategory.valueOf(rs.getString("category").uppercase()) } catch (e: Exception) { PlaceCategory.CULTURE },
+                        price = rs.getInt("price"),
+                        duration = rs.getInt("duration"),
+                        effort = rs.getInt("effort")
                     ))
                 }
             }
@@ -51,11 +51,11 @@ object PlaceService {
     suspend fun searchByName(query: String, limit: Int = 10): List<Place> {
         return DatabaseFactory.dbQuery {
             val sql = """
-            SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng 
-            FROM places 
-            WHERE name ILIKE ? 
-            LIMIT ?
-        """.trimIndent()
+                SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng, price, duration, effort 
+                FROM places 
+                WHERE name ILIKE ? 
+                LIMIT ?
+            """.trimIndent()
 
             val results = mutableListOf<Place>()
 
@@ -72,11 +72,10 @@ object PlaceService {
                         name = rs.getString("name"),
                         latitude = rs.getDouble("lat"),
                         longitude = rs.getDouble("lng"),
-                        category = try {
-                            PlaceCategory.valueOf(rs.getString("category").uppercase())
-                        } catch (e: Exception) {
-                            PlaceCategory.CULTURE
-                        }
+                        category = try { PlaceCategory.valueOf(rs.getString("category").uppercase()) } catch (e: Exception) { PlaceCategory.CULTURE },
+                        price = rs.getInt("price"),
+                        duration = rs.getInt("duration"),
+                        effort = rs.getInt("effort")
                     ))
                 }
             }

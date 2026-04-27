@@ -85,9 +85,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:orientation="horizontal"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                tools:listitem="@layout/item_itinerary" /> </LinearLayout>
+                android:clipToPadding="false"
+                android:paddingHorizontal="16dp" />
+
+            </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
