@@ -35,7 +35,6 @@ fun Route.pathRoutes() {
             }
         }
 
-        // LA VRAIE ROUTE DE GÉNÉRATION
         post("/generate") {
             try {
                 // 1. On reçoit et décode la requête d'Android
@@ -44,8 +43,11 @@ fun Route.pathRoutes() {
                 // 2. ON APPELLE LE VRAI ALGORITHME (Plus de simulation !)
                 val results = PathService.generatePath(request)
 
-                // 3. On renvoie les 3 choix au téléphone
-                call.respond(results)
+                if (results.isEmpty() || results.all { it.steps.isEmpty() }) {
+                    call.respond(HttpStatusCode.OK, emptyList<ItineraryResponse>())
+                } else {
+                    call.respond(HttpStatusCode.OK, results)
+                }
 
             } catch (e: Exception) {
                 application.log.error("Erreur lors de la génération", e)

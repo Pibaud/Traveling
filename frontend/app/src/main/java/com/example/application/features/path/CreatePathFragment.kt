@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import android.widget.Toast
 import androidx.navigation.fragment.findNavController
 import com.example.application.R
 import com.example.application.databinding.FragmentCreatePathBinding
@@ -23,26 +24,39 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
 
         binding.btnGenerate.setOnClickListener {
             val request = GeneratePathRequest(
-                categories = getSelectedActivities(), // Ancien 'activities'
-                selectedPlaceIds = emptyList(),       // On envoie une liste vide pour l'instant
+                categories = getDbMappedActivities(), // 👈 Utilisation de la nouvelle fonction de mapping
+                selectedPlaceIds = emptyList(),
                 budgetMax = binding.etBudget.text.toString().toIntOrNull() ?: 100,
-                durationHours = getSelectedDurationInHours(), // Ancien 'durationDays'
+                durationHours = getSelectedDurationInHours(),
                 effortLevel = binding.sliderEffort.value.toInt(),
-                weatherTolerance = binding.sliderWeather.value.toInt()
+                weatherTolerance = binding.sliderWeather.value.toInt(),
+                mealIncluded = binding.radioMealYes.isChecked // 👈 On récupère le "Oui" ou "Non"
             )
 
             lifecycleScope.launch {
                 try {
                     val response = RetrofitInstance.api.generatePath(request)
                     if (response.isSuccessful) {
-                        PathResultsFragment.tempResults = response.body() ?: emptyList()
-                        findNavController().navigate(R.id.action_createPath_to_results)
+                        val itineraries = response.body() ?: emptyList()
+
+                        val isResponseEmpty = itineraries.isEmpty() || itineraries.all { it.steps.isEmpty() }
+
+                        if (isResponseEmpty) {
+                            Toast.makeText(
+                                requireContext(),
+                                "Paramètres de générations non compatibles veuillez changer de paramètres pour avoir des résultats",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            PathResultsFragment.tempResults = itineraries
+                            findNavController().navigate(R.id.action_createPath_to_results)
+                        }
                     } else {
-                        // Utile pour débugger
-                        println("Erreur API : ${response.code()}")
+                        Toast.makeText(requireContext(), "Erreur serveur : ${response.code()}", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
+                    Toast.makeText(requireContext(), "Erreur de connexion", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -103,6 +117,17 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             R.id.chipDurDay -> 24  // 24h pour 1 journée
             R.id.chipDurWeekend -> 48 // 48h pour un week-end
             else -> 1 // Valeur par défaut de sécurité
+        }
+    }
+
+    private fun getDbMappedActivities(): List<String> {
+        return binding.chipGroupActivities.checkedChipIds.mapNotNull { id ->
+            when (id) {
+                R.id.chipCulture -> "CULTURE"
+                R.id.chipNature -> "DECOUVERTE"
+                R.id.chipSport -> "LOISIRS"
+                else -> null
+            }
         }
     }
 
