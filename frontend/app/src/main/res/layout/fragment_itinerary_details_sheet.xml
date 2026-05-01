@@ -7,6 +7,7 @@
     android:background="@android:color/transparent">
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/bottom_sheet_background"
@@ -19,6 +20,7 @@
             android:padding="16dp">
 
             <View
+                android:id="@+id/dragHandle"
                 android:layout_width="40dp"
                 android:layout_height="4dp"
                 android:layout_gravity="center"
@@ -68,27 +70,34 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Map wrapped in a FrameLayout for touch interception -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
+                android:layout_height="250dp"
                 android:layout_marginTop="16dp"
                 app:cardCornerRadius="16dp">
 
-                <com.mapbox.mapboxsdk.maps.MapView
-                    android:id="@+id/mapViewDetails"
+                <FrameLayout
+                    android:id="@+id/mapContainer"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
+                    android:layout_height="match_parent">
+                    <com.mapbox.mapboxsdk.maps.MapView
+                        android:id="@+id/mapViewDetails"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+                </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvSteps"
+            <!-- Point 4: Replaced RecyclerView with ViewPager2 for the carousel -->
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/vpSteps"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="150dp"
                 android:layout_marginTop="16dp"
                 android:clipToPadding="false"
-                android:paddingHorizontal="16dp" />
+                android:clipChildren="false"/>
 
-            </LinearLayout>
+        </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
     <LinearLayout

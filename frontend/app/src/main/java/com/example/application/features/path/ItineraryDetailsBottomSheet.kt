@@ -1,32 +1,39 @@
 package com.example.application.features.path
 
 import android.app.Dialog
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import com.example.application.BuildConfig
 import com.example.application.databinding.FragmentItineraryDetailsSheetBinding
 import com.example.application.model.ItineraryResponse
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.mapbox.mapboxsdk.Mapbox
-import com.mapbox.mapboxsdk.annotations.MarkerOptions
-import com.mapbox.mapboxsdk.annotations.PolylineOptions
-import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
-import com.mapbox.mapboxsdk.geometry.LatLng
-import com.mapbox.mapboxsdk.geometry.LatLngBounds
-import com.mapbox.mapboxsdk.WellKnownTileServer
-import com.mapbox.mapboxsdk.camera.CameraPosition
-import android.widget.EditText
-import android.widget.Toast
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.mapbox.mapboxsdk.Mapbox
+import com.mapbox.mapboxsdk.WellKnownTileServer
+import com.mapbox.mapboxsdk.annotations.IconFactory
+import com.mapbox.mapboxsdk.annotations.MarkerOptions
+import com.mapbox.mapboxsdk.annotations.PolylineOptions
+import com.mapbox.mapboxsdk.camera.CameraPosition
+import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
+import com.mapbox.mapboxsdk.geometry.LatLng
+import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import kotlinx.coroutines.launch
 
 class ItineraryDetailsBottomSheet(
@@ -35,6 +42,9 @@ class ItineraryDetailsBottomSheet(
 
     private var _binding: FragmentItineraryDetailsSheetBinding? = null
     private val binding get() = _binding!!
+
+    // Store reference to map to control camera later
+    private var mapboxMapRef: com.mapbox.mapboxsdk.maps.MapboxMap? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -53,32 +63,46 @@ class ItineraryDetailsBottomSheet(
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialisation de la carte Mapbox (OBLIGATOIRE)
         binding.mapViewDetails.onCreate(savedInstanceState)
 
-        binding.mapViewDetails.getMapAsync { mapboxMap ->
+        // Point 5: Fix scroll conflict. Stop NestedScrollView from intercepting map touches.
+        binding.mapContainer.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // Prevent parent from stealing touch events while interacting with map
+                    binding.nestedScrollView.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // Give touch control back to parent
+                    binding.nestedScrollView.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            false // Let the map handle the actual touch
+        }
 
-            // 1. ON RÉCUPÈRE LA CLÉ ET L'URL COMME TON AMI
+        binding.mapViewDetails.getMapAsync { mapboxMap ->
+            mapboxMapRef = mapboxMap // Save reference for the ViewPager callback
+
             val key = BuildConfig.MAPTILER_API_KEY.replace("\"", "")
             val styleUrl = "https://api.maptiler.com/maps/streets-v2/style.json?key=$key"
 
-            // 2. ON CHARGE LE STYLE MAPTILER
             mapboxMap.setStyle(styleUrl) { style ->
-
-                // 3. ON DESSINE SEULEMENT QUAND LE STYLE EST CHARGÉ
                 val points = itinerary.steps.map { LatLng(it.latitude, it.longitude) }
 
                 if (points.isNotEmpty()) {
-                    // Ajouter des marqueurs pour chaque étape
+                    // Point 1: Create numbered pins
                     itinerary.steps.forEachIndexed { index, place ->
+                        val number = (index + 1).toString()
+                        val icon = IconFactory.getInstance(requireContext()).fromBitmap(createNumberedPin(number))
+
                         mapboxMap.addMarker(
                             MarkerOptions()
                                 .position(LatLng(place.latitude, place.longitude))
                                 .title("${index + 1}. ${place.name}")
+                                .icon(icon) // Apply custom icon
                         )
                     }
 
-                    // Dessiner la ligne (Polyline)
                     mapboxMap.addPolyline(
                         PolylineOptions()
                             .addAll(points)
@@ -86,20 +110,16 @@ class ItineraryDetailsBottomSheet(
                             .width(5f)
                     )
 
-                    // Zoomer intelligemment (CORRECTION DU CRASH ICI)
                     if (points.size > 1) {
-                        // S'il y a plusieurs points, on fait une boîte (Bounds)
                         val bounds = LatLngBounds.Builder().includes(points).build()
                         mapboxMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
                     } else if (points.size == 1) {
-                        // S'il n'y a qu'un point, on zoome simplement dessus
                         mapboxMap.animateCamera(CameraUpdateFactory.newLatLngZoom(points[0], 14.0))
                     }
                 }
             }
         }
 
-        // Remplissage des données
         binding.tvDetailName.text = itinerary.name
         binding.tvDetailPrice.text = "${itinerary.totalPrice} €"
         binding.tvDetailInfos.text = "${itinerary.totalDuration} heures\n" +
@@ -109,31 +129,78 @@ class ItineraryDetailsBottomSheet(
             binding.cvHeader.setCardBackgroundColor(Color.parseColor(itinerary.hexColor))
         } catch (e: Exception) {}
 
-        binding.rvSteps.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
-            requireContext(),
-            androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL,
-            false
-        )
-
-        // On passe les lieux à l'adaptateur
-        binding.rvSteps.adapter = ItineraryStepAdapter(itinerary.steps) { clickedPlace ->
-            // Action au clic sur une bulle de lieu
-            // Ex: recentrer la carte sur le lieu
-            val position = CameraPosition.Builder()
-                .target(LatLng(clickedPlace.latitude, clickedPlace.longitude))
-                .zoom(16.0)
-                .build()
-            binding.mapViewDetails.getMapAsync { map ->
-                map.animateCamera(CameraUpdateFactory.newCameraPosition(position), 1000)
-            }
+        // Point 4: Setup ViewPager2 (Carousel) instead of RecyclerView
+        val adapter = ItineraryStepAdapter(itinerary.steps) { clickedPlace ->
+            // Point 3: Just print instead of moving camera
+            println("=== REDIRECTION TO DETAILS PAGE FOR: ${clickedPlace.name} ===")
+            Toast.makeText(requireContext(), "Ouverture des détails de ${clickedPlace.name}...", Toast.LENGTH_SHORT).show()
         }
 
-        // Gestion des boutons
+        binding.vpSteps.adapter = adapter
+
+        // Show next/previous card edges slightly
+        binding.vpSteps.offscreenPageLimit = 1
+        val recyclerView = binding.vpSteps.getChildAt(0) as RecyclerView
+        recyclerView.setPadding(0, 0, 100, 0) // Padding on right to show next item
+        recyclerView.clipToPadding = false
+
+        // Point 4: Move map camera when swiping the carousel
+        binding.vpSteps.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                val currentPlace = itinerary.steps[position]
+                val cameraPosition = CameraPosition.Builder()
+                    .target(LatLng(currentPlace.latitude, currentPlace.longitude))
+                    .zoom(15.0)
+                    .build()
+
+                mapboxMapRef?.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 800)
+            }
+        })
+
         binding.btnSave.setOnClickListener {
             showSaveDialog()
         }
     }
 
+    // --- Helper function for Point 1: Draw a number on a circle bitmap ---
+    private fun createNumberedPin(number: String): Bitmap {
+        val size = 80 // Size of the pin
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Draw red circle
+        val paintCircle = Paint().apply {
+            color = Color.parseColor("#E53935") // Red
+            isAntiAlias = true
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paintCircle)
+
+        // Draw white border
+        val paintBorder = Paint().apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 4f
+            isAntiAlias = true
+        }
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2f, paintBorder)
+
+        // Draw text
+        val paintText = Paint().apply {
+            color = Color.WHITE
+            textSize = 40f
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+            isFakeBoldText = true
+        }
+
+        // Center text vertically
+        val xPos = (canvas.width / 2).toFloat()
+        val yPos = (canvas.height / 2 - (paintText.descent() + paintText.ascent()) / 2)
+        canvas.drawText(number, xPos, yPos, paintText)
+
+        return bitmap
+    }
     private fun showSaveDialog() {
         val context = requireContext()
 
