@@ -13,6 +13,10 @@ import com.google.android.material.chip.Chip
 import kotlinx.coroutines.launch
 
 class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
+
+    companion object {
+        var draftRequest: GeneratePathRequest? = null
+    }
     private var _binding: FragmentCreatePathBinding? = null
     private val binding get() = _binding!!
 
@@ -21,6 +25,40 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         _binding = FragmentCreatePathBinding.bind(view)
 
         setupDynamicVisuals()
+
+        draftRequest?.let { request ->
+            binding.etBudget.setText(request.budgetMax.toString())
+
+            binding.sliderEffort.value = request.effortLevel.toFloat()
+            binding.sliderWeather.value = request.weatherTolerance.toFloat()
+
+            // Repas
+            if (request.mealIncluded) {
+                binding.radioMealYes.isChecked = true
+            } else {
+                binding.radioMealNo.isChecked = true
+            }
+
+            // Catégories (Chips)
+            binding.chipCulture.isChecked = request.categories.contains("CULTURE")
+            binding.chipNature.isChecked = request.categories.contains("DECOUVERTE")
+            binding.chipSport.isChecked = request.categories.contains("LOISIRS")
+
+            // Durée
+            val durationId = when (request.durationHours) {
+                1 -> R.id.chipDur1h
+                2 -> R.id.chipDur2h
+                3 -> R.id.chipDur3h
+                4 -> R.id.chipDurHalf
+                24 -> R.id.chipDurDay
+                48 -> R.id.chipDurWeekend
+                else -> R.id.chipDur1h
+            }
+            binding.chipGroupDuration.check(durationId)
+
+            // 3. On vide la boîte aux lettres pour que la prochaine ouverture soit vierge
+            draftRequest = null
+        }
 
         binding.btnGenerate.setOnClickListener {
             val request = GeneratePathRequest(

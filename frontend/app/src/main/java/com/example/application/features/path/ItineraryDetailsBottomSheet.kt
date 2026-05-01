@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.example.application.BuildConfig
@@ -35,6 +36,7 @@ import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import kotlinx.coroutines.launch
+import com.example.application.R
 
 class ItineraryDetailsBottomSheet(
     private val itinerary: ItineraryResponse
@@ -160,6 +162,37 @@ class ItineraryDetailsBottomSheet(
 
         binding.btnSave.setOnClickListener {
             showSaveDialog()
+        }
+        // --- NOUVEAU : Action sur le bouton Regénérer ---
+        binding.btnRegenerate.setOnClickListener {
+            val categories = itinerary.steps.map { it.category.name.uppercase() }.distinct()
+
+            val request = com.example.application.model.GeneratePathRequest(
+                categories = categories,
+                selectedPlaceIds = emptyList(),
+                budgetMax = itinerary.totalPrice,
+                durationHours = itinerary.totalDuration,
+                effortLevel = itinerary.avgEffort.toInt().coerceIn(1, 3),
+                weatherTolerance = 2,
+                mealIncluded = itinerary.mealIncluded
+            )
+
+            CreatePathFragment.draftRequest = request
+
+            // 1. On récupère le "parent" (le fragment qui a ouvert le BottomSheet)
+            val navController = parentFragment?.findNavController()
+
+            // 2. On ferme le panneau
+            dismiss()
+
+            // 3. On demande au parent de naviguer avec le bon ID
+            try {
+                navController?.navigate(R.id.createPathFragment)
+            } catch (e: Exception) {
+                // Si on était DÉJÀ sur la page des résultats, on fait simplement un "retour"
+                // vers la page de création qui est juste derrière !
+                navController?.popBackStack(R.id.createPathFragment, false)
+            }
         }
     }
 
