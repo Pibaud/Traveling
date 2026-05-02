@@ -1,8 +1,8 @@
 package com.example.application.services
 
 import com.example.application.DatabaseFactory
-import com.example.application.model.Place        // Vérifie bien ton package model
-import com.example.application.model.PlaceCategory
+import com.example.application.models.Place        // Vérifie bien ton package model
+import com.example.application.models.PlaceCategory
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.ResultSet
 
