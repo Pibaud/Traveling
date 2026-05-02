@@ -10,5 +10,6 @@ data class GeneratePathRequest(
     val durationHours: Int,
     val effortLevel: Int,
     val weatherTolerance: Int,
-    val mealIncluded: Boolean // 👈 NOUVEAU CHAMP ICI !
+    val mealIncluded: Boolean,
+    val startTimeMinutes: Int // 👈 NOUVEAU CHAMP (ex: 9h30 = 9 * 60 + 30 = 570)
 )

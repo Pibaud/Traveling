@@ -1,4 +1,4 @@
-package com.example.application.model
+package com.example.application.models
 
 import kotlinx.serialization.Serializable
 
@@ -11,10 +11,12 @@ data class Place(
     val category: PlaceCategory = PlaceCategory.CULTURE,
     val price: Int = 0,         // Prix en euros
     val duration: Int = 1,      // Durée en heures
-    val effort: Int = 1         // Effort de 1 à 3 (ou 5)
+    val effort: Int = 1,        // Effort de 1 à 3 (ou 5)
+    val openingHours: String? = null,
+    val arrivalTime: String? = null
 )
 
 @Serializable
 enum class PlaceCategory {
-    CULTURE, RESTAURATION, LOISIRS, DECOUVERTE, SPORT, NATURE
+    CULTURE, RESTAURATION, LOISIRS, DECOUVERTE, NATURE
 }

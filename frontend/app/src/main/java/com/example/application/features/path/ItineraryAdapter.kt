@@ -4,8 +4,10 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.example.application.R
 import com.example.application.model.ItineraryResponse
 import com.google.android.material.card.MaterialCardView
@@ -22,6 +24,14 @@ class ItineraryAdapter(
         val duration: TextView = view.findViewById(R.id.tvDuration)
         val meal: TextView = view.findViewById(R.id.tvMeal)
         val effort: TextView = view.findViewById(R.id.tvEffort)
+
+        // Nouvelles vues pour la mosaïque
+        val row1: View = view.findViewById(R.id.row1)
+        val row2: View = view.findViewById(R.id.row2)
+        val ivCover1: ImageView = view.findViewById(R.id.ivCover1)
+        val ivCover2: ImageView = view.findViewById(R.id.ivCover2)
+        val ivCover3: ImageView = view.findViewById(R.id.ivCover3)
+        val ivCover4: ImageView = view.findViewById(R.id.ivCover4)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -38,15 +48,36 @@ class ItineraryAdapter(
         holder.meal.text = if (item.mealIncluded) "🍽 Repas compris" else "🍽 Repas non compris"
         holder.effort.text = "💪 Effort : ${item.avgEffort}/5"
 
+        // On met toujours la couleur de fond générée (ça sert si 0 image, ou pendant le chargement)
         try {
-            val color = Color.parseColor(item.hexColor)
-            holder.card.setCardBackgroundColor(color)
+            holder.card.setCardBackgroundColor(Color.parseColor(item.hexColor))
         } catch (e: Exception) {
             holder.card.setCardBackgroundColor(Color.DKGRAY)
         }
 
-        // LA CORRECTION EST ICI 👇
-        // On renvoie simplement l'item cliqué au Fragment, qui lui s'occupe du BottomSheet !
+        // --- LA LOGIQUE DE LA MOSAÏQUE (0 à 4 photos) ---
+        val images = item.coverImages ?: emptyList()
+        val count = images.size
+
+        // On masque les lignes si on n'a pas assez d'images
+        holder.row1.visibility = if (count > 0) View.VISIBLE else View.GONE
+        holder.row2.visibility = if (count > 2) View.VISIBLE else View.GONE
+
+        // On masque les cases si on n'a pas assez d'images
+        holder.ivCover1.visibility = if (count > 0) View.VISIBLE else View.GONE
+        holder.ivCover2.visibility = if (count > 1) View.VISIBLE else View.GONE
+        holder.ivCover3.visibility = if (count > 2) View.VISIBLE else View.GONE
+        holder.ivCover4.visibility = if (count > 3) View.VISIBLE else View.GONE
+
+        // On charge les images avec Glide
+        val imageViews = listOf(holder.ivCover1, holder.ivCover2, holder.ivCover3, holder.ivCover4)
+        for (i in 0 until minOf(4, count)) {
+            Glide.with(holder.itemView.context)
+                .load(images[i])
+                .centerCrop()
+                .into(imageViews[i])
+        }
+
         holder.card.setOnClickListener {
             onItemClick(item)
         }

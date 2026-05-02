@@ -167,6 +167,16 @@ class ItineraryDetailsBottomSheet(
         binding.btnRegenerate.setOnClickListener {
             val categories = itinerary.steps.map { it.category.name.uppercase() }.distinct()
 
+            // 1. On récupère l'heure de la première étape (ou "09:30" par défaut)
+            val firstStepTime = itinerary.steps.firstOrNull()?.arrivalTime ?: "09:30"
+            val timeParts = firstStepTime.split(":")
+            val startMin = if (timeParts.size == 2) {
+                (timeParts[0].toIntOrNull() ?: 9) * 60 + (timeParts[1].toIntOrNull() ?: 30)
+            } else {
+                540
+            }
+
+            // 2. On passe startMin à la requête !
             val request = com.example.application.model.GeneratePathRequest(
                 categories = categories,
                 selectedPlaceIds = emptyList(),
@@ -174,7 +184,8 @@ class ItineraryDetailsBottomSheet(
                 durationHours = itinerary.totalDuration,
                 effortLevel = itinerary.avgEffort.toInt().coerceIn(1, 3),
                 weatherTolerance = 2,
-                mealIncluded = itinerary.mealIncluded
+                mealIncluded = itinerary.mealIncluded,
+                startTimeMinutes = startMin // 👈 L'heure dynamique issue de l'étape 1 !
             )
 
             CreatePathFragment.draftRequest = request

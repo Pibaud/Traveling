@@ -21,7 +21,7 @@ class ItineraryStepAdapter(
         val tvStepName: TextView = view.findViewById(R.id.tvStepName)
         val tvStepCategory: TextView = view.findViewById(R.id.tvStepCategory)
         val tvStepDuration: TextView = view.findViewById(R.id.tvStepDuration)
-        val tvStepPrice: TextView = view.findViewById(R.id.tvStepPrice) // Added Price
+        val tvStepPrice: TextView = view.findViewById(R.id.tvStepPrice)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -36,16 +36,17 @@ class ItineraryStepAdapter(
         holder.tvStepName.text = place.name
         holder.tvStepCategory.text = place.category.name.lowercase().replaceFirstChar { it.uppercase() }
 
-        holder.tvStepDuration.text = "⏳ ${place.duration}h"
+        // 👇 L'AFFICHAGE DE L'HEURE D'ARRIVÉE EST ICI
+        val arrivalTxt = place.arrivalTime ?: "--:--"
+        holder.tvStepDuration.text = "🕒 $arrivalTxt (Prévu : ${place.duration}h)"
 
-        // Point 2: Format and show price
+        // Affichage du prix
         val priceText = if (place.price == 0) "Gratuit" else "${place.price} €"
         holder.tvStepPrice.text = "💶 $priceText"
 
         holder.card.setCardBackgroundColor(Color.parseColor("#F8F9FA"))
 
         holder.itemView.setOnClickListener {
-            // Point 3: This will now trigger the print instead of moving the camera
             onStepClick(place)
         }
     }

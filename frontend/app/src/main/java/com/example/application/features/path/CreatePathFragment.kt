@@ -61,14 +61,26 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         }
 
         binding.btnGenerate.setOnClickListener {
+            // 1. On récupère et convertit l'heure tapée (ex: "09:30" -> 570)
+            val timeString = binding.etStartTime.text.toString()
+            val timeParts = timeString.split(":")
+            var startMinutes = 9 * 60 // 9h00 par défaut
+            if (timeParts.size == 2) {
+                val h = timeParts[0].toIntOrNull() ?: 9
+                val m = timeParts[1].toIntOrNull() ?: 0
+                startMinutes = h * 60 + m
+            }
+
+            // 2. On crée la requête
             val request = GeneratePathRequest(
-                categories = getDbMappedActivities(), // 👈 Utilisation de la nouvelle fonction de mapping
+                categories = getDbMappedActivities(),
                 selectedPlaceIds = emptyList(),
                 budgetMax = binding.etBudget.text.toString().toIntOrNull() ?: 100,
                 durationHours = getSelectedDurationInHours(),
                 effortLevel = binding.sliderEffort.value.toInt(),
                 weatherTolerance = binding.sliderWeather.value.toInt(),
-                mealIncluded = binding.radioMealYes.isChecked // 👈 On récupère le "Oui" ou "Non"
+                mealIncluded = binding.radioMealYes.isChecked,
+                startTimeMinutes = startMinutes // 👈 On envoie l'heure de départ
             )
 
             lifecycleScope.launch {
