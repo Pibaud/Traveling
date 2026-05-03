@@ -20,7 +20,7 @@
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Itinéraires enregistrés" android:textSize="20sp" android:textStyle="bold"
+            android:text="Itinéraires likés" android:textSize="20sp" android:textStyle="bold"
             android:layout_marginTop="24dp"/>
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvSaved"

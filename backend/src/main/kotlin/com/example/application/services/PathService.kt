@@ -1,6 +1,7 @@
 package com.example.application.services
 
 import com.example.application.DatabaseFactory.dbQuery
+import com.example.application.ItineraryLikes
 import com.example.application.models.GeneratePathRequest
 import com.example.application.models.ItineraryResponse
 import com.example.application.models.Place
@@ -12,6 +13,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
@@ -153,11 +157,40 @@ object PathService {
         }
     }
 
-    suspend fun getItinerariesByCategory(userId: String, category: String): List<ItineraryResponse> = dbQuery {
-        val query = if (category == "SUGGESTIONS") {
-            Itineraries.selectAll().limit(10)
+    suspend fun toggleLike(userId: String, itineraryId: Int): Boolean = dbQuery {
+        // On cherche si le like existe déjà
+        val existingLike = ItineraryLikes.select {
+            (ItineraryLikes.userId eq userId) and (ItineraryLikes.itineraryId eq itineraryId)
+        }.singleOrNull()
+
+        if (existingLike != null) {
+            // S'il existe, on l'enlève (Dislike)
+            ItineraryLikes.deleteWhere {
+                (ItineraryLikes.userId eq userId) and (ItineraryLikes.itineraryId eq itineraryId)
+            }
+            false // Retourne false = n'est plus liké
         } else {
-            Itineraries.select { Itineraries.authorId eq userId }
+            // S'il n'existe pas, on l'ajoute (Like)
+            ItineraryLikes.insert {
+                it[this.userId] = userId
+                it[this.itineraryId] = itineraryId
+            }
+            true // Retourne true = est maintenant liké
+        }
+    }
+
+    suspend fun getItinerariesByCategory(userId: String, category: String): List<ItineraryResponse> = dbQuery {
+
+        val likedItineraryIds = ItineraryLikes
+            .select { ItineraryLikes.userId eq userId }
+            .map { it[ItineraryLikes.itineraryId] }
+            .toSet()
+
+        val query = when (category) {
+            "SUGGESTIONS" -> Itineraries.selectAll().limit(10)
+            "LIKED" -> Itineraries.innerJoin(ItineraryLikes)
+                .select { ItineraryLikes.userId eq userId } // 👈 Le nouveau filtre !
+            else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
         }
 
         query.map { row ->
@@ -200,7 +233,8 @@ object PathService {
                 avgEffort = (row[Itineraries.avgEffort]?: 0.0).roundToInt(),
                 mealIncluded = row[Itineraries.mealIncluded]?: false,
                 steps = places,
-                coverImages = coverImages
+                coverImages = coverImages,
+                isLiked = likedItineraryIds.contains(itineraryId)
             )
         }
     }

@@ -9,7 +9,6 @@ import io.ktor.server.application.log
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.Json
 
 fun Route.pathRoutes() {
     route("/path") {
@@ -23,7 +22,6 @@ fun Route.pathRoutes() {
         get("/list") {
             try {
                 val userId = call.request.queryParameters["userId"] ?: ""
-                // Si l'app Android n'envoie pas de catégorie, on cherche les parcours de l'utilisateur par défaut
                 val category = call.request.queryParameters["category"] ?: "MES_PARCOURS"
 
                 val results = PathService.getItinerariesByCategory(userId, category)
@@ -37,10 +35,7 @@ fun Route.pathRoutes() {
 
         post("/generate") {
             try {
-                // 1. On reçoit et décode la requête d'Android
                 val request = call.receive<GeneratePathRequest>()
-
-                // 2. ON APPELLE LE VRAI ALGORITHME (Plus de simulation !)
                 val results = PathService.generatePath(request)
 
                 if (results.isEmpty() || results.all { it.steps.isEmpty() }) {
@@ -61,14 +56,27 @@ fun Route.pathRoutes() {
         post("/save") {
             try {
                 val request = call.receive<SavePathRequest>()
-
-                // 2. APPEL À TA BASE DE DONNÉES (VIA LE SERVICE)
                 PathService.savePath(request)
-
-                // 3. On répond que tout est OK
                 call.respond(HttpStatusCode.OK, mapOf("status" to "success"))
 
             } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Erreur inconnue")))
+            }
+        }
+
+        // 👇 NOUVELLE ROUTE POUR LE LIKE/DISLIKE 👇
+        post("/like") {
+            try {
+                val userId = call.request.queryParameters["userId"] ?: throw Exception("userId manquant")
+                val itineraryIdStr = call.request.queryParameters["itineraryId"] ?: throw Exception("itineraryId manquant")
+                val itineraryId = itineraryIdStr.toInt()
+
+                // On appelle le service qu'on a créé précédemment
+                val isNowLiked = PathService.toggleLike(userId, itineraryId)
+
+                call.respond(HttpStatusCode.OK, mapOf("liked" to isNowLiked))
+            } catch (e: Exception) {
+                application.log.error("Erreur lors du toggleLike", e)
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Erreur inconnue")))
             }
         }

@@ -81,4 +81,10 @@ interface TravelingApiService {
 
     @POST("path/save") // Assure-toi que c'est bien la route que tu as mise dans ton backend Ktor
     suspend fun savePath(@Body request: SavePathRequest): Response<Unit>
+
+    @POST("path/like")
+    suspend fun toggleLike(
+        @Query("userId") userId: String,
+        @Query("itineraryId") itineraryId: Int
+    ): Map<String, Boolean>
 }

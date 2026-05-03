@@ -14,7 +14,8 @@ import com.google.android.material.card.MaterialCardView
 
 class ItineraryAdapter(
     private val items: List<ItineraryResponse>,
-    private val onItemClick: (ItineraryResponse) -> Unit
+    private val onItemClick: (ItineraryResponse) -> Unit,
+    private val onLikeClick: (ItineraryResponse) -> Unit
 ) : RecyclerView.Adapter<ItineraryAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -32,6 +33,7 @@ class ItineraryAdapter(
         val ivCover2: ImageView = view.findViewById(R.id.ivCover2)
         val ivCover3: ImageView = view.findViewById(R.id.ivCover3)
         val ivCover4: ImageView = view.findViewById(R.id.ivCover4)
+        val ivLike: ImageView = view.findViewById(R.id.ivLike)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -76,6 +78,32 @@ class ItineraryAdapter(
                 .load(images[i])
                 .centerCrop()
                 .into(imageViews[i])
+        }
+
+        if (item.isLiked) {
+            holder.ivLike.setImageResource(R.drawable.ic_heart_filled)
+            holder.ivLike.setColorFilter(Color.RED) // Cœur rouge si liké
+        } else {
+            holder.ivLike.setImageResource(R.drawable.ic_heart_empty)
+            holder.ivLike.setColorFilter(Color.WHITE) // Cœur blanc vide sinon
+        }
+
+        // 2. Action au clic sur le cœur (UI Optimiste)
+        holder.ivLike.setOnClickListener {
+            // On inverse l'état localement tout de suite
+            item.isLiked = !item.isLiked
+
+            // On met à jour le visuel instantanément
+            if (item.isLiked) {
+                holder.ivLike.setImageResource(R.drawable.ic_heart_filled)
+                holder.ivLike.setColorFilter(Color.RED)
+            } else {
+                holder.ivLike.setImageResource(R.drawable.ic_heart_empty)
+                holder.ivLike.setColorFilter(Color.WHITE)
+            }
+
+            // On prévient le Fragment pour qu'il fasse l'appel réseau
+            onLikeClick(item)
         }
 
         holder.card.setOnClickListener {

@@ -40,16 +40,35 @@ class PathResultsFragment : Fragment(R.layout.fragment_path_results) {
     private fun setupRecyclerView() {
         binding.rvResults.layoutManager = LinearLayoutManager(requireContext())
 
-        val adapter = ItineraryAdapter(tempResults) { selectedItinerary ->
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Clic ! Étapes: ${selectedItinerary.steps.size}",
-                android.widget.Toast.LENGTH_LONG
-            ).show()
+        // C'EST ICI QUE TOUT CHANGE : On nomme explicitement les paramètres
+        val adapter = ItineraryAdapter(
+            items = tempResults,
 
-            val detailsSheet = ItineraryDetailsBottomSheet(selectedItinerary)
-            detailsSheet.show(parentFragmentManager, "ItineraryDetails")
-        }
+            onItemClick = { selectedItinerary ->
+                // Ce qui se passe quand on clique sur la carte (On garde ton Toast !)
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    "Clic ! Étapes: ${selectedItinerary.steps.size}",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
+                val detailsSheet = ItineraryDetailsBottomSheet(selectedItinerary)
+                detailsSheet.show(parentFragmentManager, "ItineraryDetails")
+            },
+
+            onLikeClick = { clickedItinerary ->
+                // Ce qui se passe quand on clique sur le cœur des résultats générés
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    "Sauvegardez d'abord le parcours pour l'ajouter à vos favoris !",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+
+                // Note : On pourrait forcer item.isLiked = false ici dans l'adapter si
+                // l'UI optimiste a rendu le cœur rouge à tort, mais pour des parcours temporaires
+                // le Toast fait très bien l'affaire pour prévenir l'utilisateur.
+            }
+        )
 
         binding.rvResults.adapter = adapter
     }
