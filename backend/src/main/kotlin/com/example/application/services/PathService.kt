@@ -114,6 +114,8 @@ object PathService {
 
             val coverImages = getTopImagesForPlaces(finalSteps)
 
+            val placesWithSchedules = recalculateSchedules(finalSteps)
+
             return ItineraryResponse(
                 name = name,
                 hexColor = color,
@@ -121,7 +123,7 @@ object PathService {
                 totalDuration = currentDuration,
                 avgEffort = if(finalSteps.isEmpty()) 0 else finalSteps.sumOf { it.effort } / finalSteps.size,
                 mealIncluded = finalSteps.any { it.category.name == "RESTAURATION" },
-                steps = finalSteps,
+                steps = placesWithSchedules,
                 coverImages = coverImages
             )
         }
@@ -195,6 +197,7 @@ object PathService {
 
         query.map { row ->
             val itineraryId = row[Itineraries.id]
+            val authorId = row[Itineraries.authorId]
 
             val sql = """
             SELECT p.id, p.name, p.category, ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lng, p.price, p.duration, p.effort, p.opening_hours::text as opening_hours
@@ -224,6 +227,8 @@ object PathService {
 
             val coverImages = getTopImagesForPlaces(places)
 
+            val placesWithSchedules = recalculateSchedules(places)
+
             ItineraryResponse(
                 id = itineraryId,
                 name = row[Itineraries.name],
@@ -232,11 +237,77 @@ object PathService {
                 totalDuration = row[Itineraries.totalDuration]?: 0,
                 avgEffort = (row[Itineraries.avgEffort]?: 0.0).roundToInt(),
                 mealIncluded = row[Itineraries.mealIncluded]?: false,
-                steps = places,
+                steps = placesWithSchedules,
                 coverImages = coverImages,
-                isLiked = likedItineraryIds.contains(itineraryId)
+                isLiked = likedItineraryIds.contains(itineraryId),
+                userId = authorId
             )
         }
+    }
+
+    suspend fun getItineraryById(itineraryId: Int): ItineraryResponse? = dbQuery {
+        // 1. On cherche l'itinéraire principal
+        val row = Itineraries.select { Itineraries.id eq itineraryId }.singleOrNull()
+            ?: return@dbQuery null // S'il n'existe pas, on renvoie null
+
+        // 2. On récupère les étapes associées
+        val sql = """
+            SELECT p.id, p.name, p.category, ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lng, p.price, p.duration, p.effort, p.opening_hours::text as opening_hours
+            FROM step s
+            JOIN places p ON s.place_id = p.id
+            WHERE s.itinerary_id = $itineraryId
+            ORDER BY s.step_order ASC
+        """.trimIndent()
+
+        val places = mutableListOf<Place>()
+
+        TransactionManager.current().exec(sql) { rs ->
+            while (rs.next()) {
+                places.add(Place(
+                    id = rs.getString("id"),
+                    name = rs.getString("name"),
+                    latitude = rs.getDouble("lat"),
+                    longitude = rs.getDouble("lng"),
+                    category = try { PlaceCategory.valueOf(rs.getString("category").uppercase()) } catch (e: Exception) { PlaceCategory.CULTURE },
+                    price = rs.getInt("price"),
+                    duration = rs.getInt("duration"),
+                    effort = rs.getInt("effort"),
+                    openingHours = rs.getString("opening_hours")
+                ))
+            }
+        }
+
+        val placesWithSchedules = recalculateSchedules(places)
+
+        // 3. On renvoie l'objet complet
+        ItineraryResponse(
+            id = itineraryId,
+            name = row[Itineraries.name],
+            hexColor = row[Itineraries.hexColor],
+            totalPrice = row[Itineraries.totalPrice] ?: 0,
+            totalDuration = row[Itineraries.totalDuration] ?: 0,
+            avgEffort = (row[Itineraries.avgEffort] ?: 0.0).roundToInt(),
+            mealIncluded = row[Itineraries.mealIncluded] ?: false,
+            steps = placesWithSchedules
+        )
+    }
+
+    suspend fun deletePath(userId: String, itineraryId: Int): Boolean = dbQuery {
+        // Optionnel mais recommandé : Vérifier que l'utilisateur est bien le propriétaire avant de supprimer
+        val itinerary = Itineraries.select { Itineraries.id eq itineraryId }.singleOrNull()
+
+        if (itinerary == null || itinerary[Itineraries.authorId] != userId) {
+            return@dbQuery false // N'existe pas ou n'appartient pas à l'utilisateur
+        }
+
+        // On supprime d'abord les dépendances (étapes et likes)
+        Steps.deleteWhere { Steps.itineraryId eq itineraryId }
+        ItineraryLikes.deleteWhere { ItineraryLikes.itineraryId eq itineraryId }
+
+        // Ensuite on supprime l'itinéraire principal
+        val deletedCount = Itineraries.deleteWhere { Itineraries.id eq itineraryId }
+
+        return@dbQuery deletedCount > 0
     }
 
     // --- FONCTION UTILITAIRE : VÉRIFICATION DU TEMPS ---
@@ -316,5 +387,15 @@ object PathService {
 
         // On retourne uniquement les 4 premières images distinctes (ou moins s'il n'y en a pas assez)
         return imageUrls.distinct().take(4)
+    }
+
+    // --- FONCTION POUR RECALCULER LES HORAIRES LORS DE LA LECTURE DB ---
+    private fun recalculateSchedules(places: List<Place>, startTimeMinutes: Int = 570): List<Place> {
+        var currentTimeMinutes = startTimeMinutes
+        return places.map { place ->
+            val arrival = formatTime(currentTimeMinutes)
+            currentTimeMinutes += (place.duration * 60) + 30 // On ajoute la durée + 30min de trajet
+            place.copy(arrivalTime = arrival)
+        }
     }
 }

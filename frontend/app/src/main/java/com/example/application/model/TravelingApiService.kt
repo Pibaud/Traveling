@@ -15,7 +15,9 @@ import com.example.application.model.Post
 import com.example.application.model.ItineraryResponse
 import com.example.application.model.SavePathRequest
 import retrofit2.Response
+import retrofit2.http.DELETE
 import retrofit2.http.Path
+import retrofit2.http.Streaming
 
 interface TravelingApiService {
     @GET("share/places/searchbbox")
@@ -87,4 +89,17 @@ interface TravelingApiService {
         @Query("userId") userId: String,
         @Query("itineraryId") itineraryId: Int
     ): Map<String, Boolean>
-}
+
+    @DELETE("path/{id}")
+    suspend fun deletePath(
+        @Path("id") id: Int,
+        @Query("userId") userId: String // On passe l'ID de l'utilisateur pour la sécurité
+    ): Response<Unit>
+
+    // NOUVELLE ROUTE POUR LE PDF (Passage en POST pour envoyer la grosse image)
+    @Streaming
+    @POST("path/export/{id}")
+    suspend fun downloadItineraryPdf(
+        @Path("id") id: Int,
+        @Body base64MapImage: String? // Le Body attendra une simple String
+    ): Response<okhttp3.ResponseBody>}

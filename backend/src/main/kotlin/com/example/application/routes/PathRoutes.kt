@@ -14,9 +14,43 @@ fun Route.pathRoutes() {
     route("/path") {
 
         // Endpoint pour l'export PDF
-        get("/export/{id}") {
-            val id = call.parameters["id"]
-            call.respondText("Export PDF pour le trajet $id")
+        post("/export/{id}") {
+            try {
+                val idStr = call.parameters["id"]
+                if (idStr == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "ID manquant"))
+                    return@post
+                }
+                val itineraryId = idStr.toInt()
+
+                // On récupère l'image Base64 depuis le Body (elle peut être vide/nulle)
+                // NOUVEAU CODE
+                val base64MapImage = try { call.receiveText() } catch (e: Exception) { null }
+                val cleanBase64 = if (base64MapImage.isNullOrBlank() || base64MapImage == "null") {
+                    null
+                } else {
+                    base64MapImage.trim('"') // 👈 LA MAGIE EST ICI : On retire les guillemets !
+                }
+                
+                val itinerary = PathService.getItineraryById(itineraryId)
+                if (itinerary == null) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Itinéraire introuvable"))
+                    return@post
+                }
+
+                // On donne l'image décodée au générateur PDF
+                val pdfBytes = com.example.application.services.PdfGenerator.generateItineraryPdf(itinerary, cleanBase64)
+
+                call.respondBytes(
+                    bytes = pdfBytes,
+                    contentType = io.ktor.http.ContentType.Application.Pdf,
+                    status = HttpStatusCode.OK
+                )
+
+            } catch (e: Exception) {
+                application.log.error("Erreur lors de la génération du PDF", e)
+                call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Impossible de générer le PDF"))
+            }
         }
 
         get("/list") {
@@ -78,6 +112,42 @@ fun Route.pathRoutes() {
             } catch (e: Exception) {
                 application.log.error("Erreur lors du toggleLike", e)
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Erreur inconnue")))
+            }
+        }
+
+        delete("/{id}") {
+            try {
+                // 1. On récupère l'ID de l'itinéraire depuis l'URL (ex: DELETE /path/42)
+                val idParam = call.parameters["id"]
+                if (idParam == null) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "ID manquant"))
+                    return@delete
+                }
+                val itineraryId = idParam.toInt()
+
+                // 2. On récupère l'ID de l'utilisateur (Firebase) pour sécuriser la suppression
+                val userId = call.request.queryParameters["userId"]
+                if (userId.isNullOrEmpty()) {
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Utilisateur non connecté"))
+                    return@delete
+                }
+
+                // 3. On demande au service de supprimer
+                val isDeleted = PathService.deletePath(userId, itineraryId)
+
+                // 4. On répond selon le résultat
+                if (isDeleted) {
+                    call.respond(HttpStatusCode.OK, mapOf("status" to "success"))
+                } else {
+                    // Si false, c'est soit que l'ID n'existe pas, soit que le userId ne correspond pas à l'auteur
+                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "Impossible de supprimer cet itinéraire"))
+                }
+
+            } catch (e: NumberFormatException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Format d'ID invalide"))
+            } catch (e: Exception) {
+                application.log.error("Erreur lors de la suppression de l'itinéraire", e)
+                call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (e.message ?: "Erreur inconnue")))
             }
         }
     }

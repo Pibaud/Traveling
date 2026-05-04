@@ -10,8 +10,8 @@
         android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/bottom_sheet_background"
-        android:paddingBottom="80dp">
+        android:background="@drawable/bottom_sheet_background">
+        <!-- paddingBottom a été supprimé ici ! -->
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -26,6 +26,66 @@
                 android:layout_gravity="center"
                 android:layout_marginBottom="16dp"
                 android:background="@drawable/bg_drag_handle" />
+
+            <LinearLayout
+                android:id="@+id/topActionBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end|center_vertical"
+                android:paddingHorizontal="16dp">
+
+                <!-- Bouton Régénérer -->
+                <ImageView
+                    android:id="@+id/ivDetailRegenerate"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_regenerate"
+                    app:tint="@color/black" />
+
+                <!-- Bouton Télécharger PDF -->
+                <ImageView
+                    android:id="@+id/ivDetailDownload"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_download"
+                    app:tint="@color/black" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <!-- bouton Like -->
+                <ImageView
+                    android:id="@+id/ivDetailLike"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_heart_empty"
+                    app:tint="@color/black" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <!-- bouton Poubelle -->
+                <ImageView
+                    android:id="@+id/ivDetailDelete"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_delete"
+                    app:tint="@color/black"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cvHeader"
@@ -70,7 +130,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Map wrapped in a FrameLayout for touch interception -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="250dp"
@@ -88,7 +147,6 @@
                 </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Point 4: Replaced RecyclerView with ViewPager2 for the carousel -->
             <androidx.viewpager2.widget.ViewPager2
                 android:id="@+id/vpSteps"
                 android:layout_width="match_parent"
@@ -100,7 +158,9 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
+    <!-- La barre d'actions du bas (Situation 1) -->
     <LinearLayout
+        android:id="@+id/bottomActionBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"

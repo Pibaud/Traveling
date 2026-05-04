@@ -14,5 +14,6 @@ data class ItineraryResponse(
     val steps: List<Place> = emptyList(), // La liste ordonnée des lieux pour la carte
     val errorMessage: String? = null,      // Pour prévenir l'utilisateur si budget trop bas
     val coverImages: List<String> = emptyList(),
-    var isLiked: Boolean = false
+    var isLiked: Boolean = false,
+    val userId: String = ""
 )
