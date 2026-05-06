@@ -31,7 +31,7 @@ fun Route.pathRoutes() {
                 } else {
                     base64MapImage.trim('"') // 👈 LA MAGIE EST ICI : On retire les guillemets !
                 }
-                
+
                 val itinerary = PathService.getItineraryById(itineraryId)
                 if (itinerary == null) {
                     call.respond(HttpStatusCode.NotFound, mapOf("error" to "Itinéraire introuvable"))

@@ -3,6 +3,7 @@ plugins {
     kotlin("plugin.serialization")
     id("com.google.gms.google-services")
     alias(libs.plugins.kotlin.android)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -77,4 +78,12 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    val room_version = "2.7.2"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version") // Pour les Coroutines
+    ksp("androidx.room:room-compiler:$room_version")
+
+    // Si tu utilises Gson pour parser facilement tes objets en String :
+    implementation("com.google.code.gson:gson:2.10.1")
 }

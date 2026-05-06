@@ -38,6 +38,7 @@ import com.mapbox.mapboxsdk.style.expressions.Expression.match
 import com.mapbox.mapboxsdk.style.expressions.Expression.stop
 import com.example.application.utils.setupPlaceAutocomplete
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
+import com.mapbox.mapboxsdk.offline.OfflineManager // 👈 NOUVEL IMPORT POUR LE CACHE
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
     private var _binding: FragmentSearchBinding? = null
@@ -66,6 +67,10 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             key, // C'est ICI que le moteur native en a besoin
             WellKnownTileServer.MapTiler
         )
+
+        // 👇 CONFIGURATION DU CACHE HORS-LIGNE POUR LA CARTE 👇
+        OfflineManager.getInstance(requireContext())
+            .setOfflineMapboxTileCountLimit(20000) // Conserve environ 20 000 tuiles en cache
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

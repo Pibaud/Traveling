@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy // 👈 NOUVEL IMPORT
 import com.example.application.R
 import com.example.application.model.ItineraryResponse
 import com.google.android.material.card.MaterialCardView
@@ -71,19 +72,19 @@ class ItineraryAdapter(
             Glide.with(holder.itemView.context)
                 .load(images[i])
                 .centerCrop()
+                // 👇 STRATÉGIE DE CACHE POUR LE HORS-LIGNE 👇
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .into(imageViews[i])
         }
 
         // =======================================================
         // === LA DÉTECTION INTELLIGENTE SUR LES PETITES CARTES ===
         // =======================================================
-        val isGenerated = (item.id == null || item.id == 0) // Pas d'ID = Situation 1 !
+        val isGenerated = (item.id == null || item.id == 0)
 
         if (isGenerated) {
-            // Situation 1 : Création -> Pas de coeur
             holder.ivLike.visibility = View.GONE
         } else {
-            // Situation 2 : Liste classique -> Coeur visible
             holder.ivLike.visibility = View.VISIBLE
 
             if (item.isLiked) {

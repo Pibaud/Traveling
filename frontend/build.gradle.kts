@@ -1,7 +1,12 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application) apply false
-    kotlin("plugin.serialization") version "1.9.22" apply false
+
+    // 👇 1. On aligne la sérialisation sur Kotlin 2.2.0 👇
+    kotlin("plugin.serialization") version "2.2.0" apply false
+
     id("com.google.gms.google-services") version "4.4.1" apply false
     alias(libs.plugins.kotlin.android) apply false
+
+    // 👇 2. On utilise la VRAIE version de KSP qui correspond à Kotlin 2.2.0 👇
+    id("com.google.devtools.ksp") version "2.2.0-2.0.2" apply false
 }

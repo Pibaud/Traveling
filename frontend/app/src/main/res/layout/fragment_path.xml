@@ -10,8 +10,18 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Mes itinéraires" android:textSize="20sp" android:textStyle="bold" />
+        <Space
+            android:layout_width="50dp"
+            android:layout_height="50dp"></Space>
+
+        <TextView
+            android:id="@+id/tvMyItinerariesTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mes itinéraires"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMyItineraries"
             android:layout_width="match_parent"
@@ -19,9 +29,15 @@
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Itinéraires likés" android:textSize="20sp" android:textStyle="bold"
+        <TextView
+            android:id="@+id/tvSavedTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Itinéraires likés"
+            android:textSize="20sp"
+            android:textStyle="bold"
             android:layout_marginTop="24dp"/>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvSaved"
             android:layout_width="match_parent"
