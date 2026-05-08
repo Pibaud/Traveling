@@ -40,6 +40,8 @@ class PathFragment : Fragment(R.layout.fragment_path) {
             // 1. Récupérer les données
             val myPaths = fetchOrLoadCache(userId, "MINE")
             val likedPaths = fetchOrLoadCache(userId, "LIKED")
+            // 👇 NOUVEL APPEL POUR LE TOP 10 👇
+            val popularPaths = fetchOrLoadCache(userId, "POPULAR")
 
             // 2. Assigner l'affichage intelligent (cache si vide)
             setupSection(
@@ -53,6 +55,14 @@ class PathFragment : Fragment(R.layout.fragment_path) {
                 titleView = binding.tvSavedTitle,
                 recyclerView = binding.rvSaved,
                 data = likedPaths,
+                userId = userId
+            )
+
+            // 👇 ON AJOUTE LA NOUVELLE SECTION À L'INTERFACE 👇
+            setupSection(
+                titleView = binding.tvPopularTitle,
+                recyclerView = binding.rvPopular,
+                data = popularPaths,
                 userId = userId
             )
         }

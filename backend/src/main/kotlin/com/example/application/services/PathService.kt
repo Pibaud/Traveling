@@ -21,6 +21,8 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import kotlin.math.roundToInt
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.count
 
 object PathService {
     suspend fun generatePath(req: GeneratePathRequest): List<ItineraryResponse> = dbQuery {
@@ -190,8 +192,21 @@ object PathService {
 
         val query = when (category) {
             "SUGGESTIONS" -> Itineraries.selectAll().limit(10)
+
             "LIKED" -> Itineraries.innerJoin(ItineraryLikes)
-                .select { ItineraryLikes.userId eq userId } // 👈 Le nouveau filtre !
+                .select { ItineraryLikes.userId eq userId }
+
+            // 👇 LA NOUVELLE CATÉGORIE POPULAIRE 👇e
+            "POPULAR" -> {
+                val likeCount = ItineraryLikes.userId.count()
+                Itineraries.innerJoin(ItineraryLikes)
+                    .slice(Itineraries.columns + likeCount) // On récupère les infos de l'itinéraire + le nombre de likes
+                    .selectAll()
+                    .groupBy(Itineraries.id) // Postgres comprend que l'ID suffit pour regrouper
+                    .orderBy(likeCount to SortOrder.DESC) // Du plus liké au moins liké
+                    .limit(10) // On prend le Top 10
+            }
+
             else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
         }
 
