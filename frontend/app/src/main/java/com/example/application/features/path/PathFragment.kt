@@ -2,7 +2,6 @@ package com.example.application.features.path
 
 import android.os.Bundle
 import android.view.View
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -23,7 +22,6 @@ class PathFragment : Fragment(R.layout.fragment_path) {
     private var _binding: FragmentPathBinding? = null
     private val binding get() = _binding!!
 
-    // On prépare notre base de données locale et Gson
     private lateinit var db: AppDatabase
     private val gson = Gson()
 
@@ -32,60 +30,31 @@ class PathFragment : Fragment(R.layout.fragment_path) {
         _binding = FragmentPathBinding.bind(view)
 
         val userId = Firebase.auth.currentUser?.uid ?: ""
-
-        // Initialisation de la BDD
         db = AppDatabase.getDatabase(requireContext())
 
         lifecycleScope.launch {
-            // 1. Récupérer les données
+            // 1. Récupérer toutes les listes
             val myPaths = fetchOrLoadCache(userId, "MINE")
             val likedPaths = fetchOrLoadCache(userId, "LIKED")
-            // 👇 NOUVEL APPEL POUR LE TOP 10 👇
             val popularPaths = fetchOrLoadCache(userId, "POPULAR")
 
-            // 2. Assigner l'affichage intelligent (cache si vide)
-            setupSection(
-                titleView = binding.tvMyItinerariesTitle,
-                recyclerView = binding.rvMyItineraries,
-                data = myPaths,
-                userId = userId
-            )
+            // 2. Construire la liste "maîtresse" des catégories
+            val categoriesList = mutableListOf<CategoryRow>()
 
-            setupSection(
-                titleView = binding.tvSavedTitle,
-                recyclerView = binding.rvSaved,
-                data = likedPaths,
-                userId = userId
-            )
+            // On ajoute les catégories SEULEMENT si elles ne sont pas vides
+            if (myPaths.isNotEmpty()) {
+                categoriesList.add(CategoryRow("Mes itinéraires", myPaths))
+            }
+            if (likedPaths.isNotEmpty()) {
+                categoriesList.add(CategoryRow("Itinéraires likés", likedPaths))
+            }
+            if (popularPaths.isNotEmpty()) {
+                categoriesList.add(CategoryRow("Les plus populaires", popularPaths))
+            }
 
-            // 👇 ON AJOUTE LA NOUVELLE SECTION À L'INTERFACE 👇
-            setupSection(
-                titleView = binding.tvPopularTitle,
-                recyclerView = binding.rvPopular,
-                data = popularPaths,
-                userId = userId
-            )
-        }
-    }
-
-    // --- FONCTION INTELLIGENTE : CACHE OU AFFICHE LA SECTION ---
-    private fun setupSection(
-        titleView: TextView,
-        recyclerView: RecyclerView,
-        data: List<ItineraryResponse>,
-        userId: String
-    ) {
-        if (data.isEmpty()) {
-            // Liste vide : on fait disparaître le titre et la liste
-            titleView.visibility = View.GONE
-            recyclerView.visibility = View.GONE
-        } else {
-            // Liste remplie : on affiche le titre, la liste, et on met l'adapteur
-            titleView.visibility = View.VISIBLE
-            recyclerView.visibility = View.VISIBLE
-
-            recyclerView.adapter = ItineraryAdapter(
-                items = data,
+            // 3. Donner la liste complète à notre NOUVEL Adapteur vertical
+            binding.rvMainCategories.adapter = CategoryAdapter(
+                categories = categoriesList,
                 onItemClick = { selectedItinerary ->
                     val detailsSheet = ItineraryDetailsBottomSheet(selectedItinerary)
                     detailsSheet.show(parentFragmentManager, "ItineraryDetails")

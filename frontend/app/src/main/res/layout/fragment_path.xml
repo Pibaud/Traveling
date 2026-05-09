@@ -1,65 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rvMainCategories"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <Space
-            android:layout_width="50dp"
-            android:layout_height="50dp"></Space>
-
-        <TextView
-            android:id="@+id/tvMyItinerariesTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Mes itinéraires"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvMyItineraries"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-        <TextView
-            android:id="@+id/tvSavedTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Itinéraires likés"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginTop="24dp"/>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvSaved"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-        <TextView
-            android:id="@+id/tvPopularTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Les plus populaires"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginTop="24dp"/>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvPopular"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+    android:layout_height="match_parent"
+    android:paddingVertical="16dp"
+    android:clipToPadding="false"
+    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
