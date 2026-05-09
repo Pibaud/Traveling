@@ -16,13 +16,11 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 1. La grille de fond pour les images -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-            <!-- Ligne du haut -->
             <LinearLayout
                 android:id="@+id/row1"
                 android:layout_width="match_parent"
@@ -34,7 +32,6 @@
                 <ImageView android:id="@+id/ivCover2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:scaleType="centerCrop"/>
             </LinearLayout>
 
-            <!-- Ligne du bas -->
             <LinearLayout
                 android:id="@+id/row2"
                 android:layout_width="match_parent"
@@ -47,13 +44,11 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 2. Le voile noir semi-transparent (pour toujours lire le texte blanc) -->
         <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="#66000000" />
 
-        <!-- 3. Tes textes (Titre, Prix, Détails) -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -97,7 +92,18 @@
                 app:layout_constraintTop_toBottomOf="@id/tvPrice"
                 app:tint="@color/white" />
 
-            <!-- Les détails groupés en bas -->
+            <TextView
+                android:id="@+id/tvLikeCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toBottomOf="@id/ivLike"
+                app:layout_constraintStart_toStartOf="@id/ivLike"
+                app:layout_constraintEnd_toEndOf="@id/ivLike"
+                tools:text="12" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

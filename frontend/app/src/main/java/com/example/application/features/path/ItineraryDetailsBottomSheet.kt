@@ -46,7 +46,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
 class ItineraryDetailsBottomSheet(
-    private val itinerary: ItineraryResponse // PLUS DE PARAMÈTRE SUPPLÉMENTAIRE !
+    private val itinerary: ItineraryResponse
 ) : BottomSheetDialogFragment() {
 
     private var _binding: FragmentItineraryDetailsSheetBinding? = null
@@ -71,13 +71,8 @@ class ItineraryDetailsBottomSheet(
 
         binding.mapContainer.setOnTouchListener { v, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> binding.nestedScrollView.requestDisallowInterceptTouchEvent(
-                    true
-                )
-
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> binding.nestedScrollView.requestDisallowInterceptTouchEvent(
-                    false
-                )
+                MotionEvent.ACTION_DOWN -> binding.nestedScrollView.requestDisallowInterceptTouchEvent(true)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> binding.nestedScrollView.requestDisallowInterceptTouchEvent(false)
             }
             false
         }
@@ -125,44 +120,41 @@ class ItineraryDetailsBottomSheet(
         } catch (e: Exception) {
         }
 
-        // =======================================================
-        // === LA DÉTECTION INTELLIGENTE DE LA SITUATION 1 OU 2 ===
-        // =======================================================
-        val isGenerated = (itinerary.id == null || itinerary.id == 0) // Pas d'ID = Situation 1 !
+        val isGenerated = (itinerary.id == null || itinerary.id == 0)
         val density = resources.displayMetrics.density
 
         if (isGenerated) {
-            // SITUATION 1: On vient de générer
             binding.topActionBar.visibility = View.GONE
             binding.bottomActionBar.visibility = View.VISIBLE
             binding.btnShare.visibility = View.GONE
 
-            // On ajoute 80dp de vide à la fin de la page pour ne pas cacher le contenu sous la barre
+            // 👇 On cache l'auteur car l'itinéraire n'a pas encore été sauvegardé
+            binding.tvAuthorName.visibility = View.GONE
+
             binding.nestedScrollView.setPadding(0, 0, 0, (80 * density).toInt())
 
             binding.btnSave.setOnClickListener { showSaveDialog() }
             binding.btnRegenerate.setOnClickListener { handleRegenerateAction() }
 
         } else {
-            // SITUATION 2: On vient de la liste
             binding.topActionBar.visibility = View.VISIBLE
             binding.bottomActionBar.visibility = View.GONE
 
-            // On libère la place en bas pour que le fragment prenne tout l'écran ! (Juste 16dp de marge propre)
+            // 👇 On affiche le pseudo de l'auteur ! 👇
+            binding.tvAuthorName.visibility = View.VISIBLE
+            binding.tvAuthorName.text = "Itinéraire créé par @${itinerary.authorName}"
+
             binding.nestedScrollView.setPadding(0, 0, 0, (16 * density).toInt())
 
-            // Logique du Like en haut
             val ivLike = binding.ivDetailLike
+            val tvLikeCount = binding.tvDetailLikeCount // 👈 Le nouveau TextView
             val userId = Firebase.auth.currentUser?.uid ?: ""
 
             val ivDelete = binding.ivDetailDelete
 
-            // Si l'utilisateur actuel est le créateur de l'itinéraire, on affiche la poubelle
             if (itinerary.userId == userId) {
                 ivDelete.visibility = View.VISIBLE
-
                 ivDelete.setOnClickListener {
-                    // On demande confirmation avant de supprimer définitivement
                     MaterialAlertDialogBuilder(requireContext())
                         .setTitle("Supprimer l'itinéraire")
                         .setMessage("Êtes-vous sûr de vouloir supprimer définitivement ce parcours ? Cette action est irréversible.")
@@ -176,6 +168,9 @@ class ItineraryDetailsBottomSheet(
                 ivDelete.visibility = View.GONE
             }
 
+            // 👇 INITIALISATION DU COMPTEUR 👇
+            tvLikeCount.text = itinerary.likeCount.toString()
+
             if (itinerary.isLiked) {
                 ivLike.setImageResource(R.drawable.ic_heart_filled)
                 ivLike.setColorFilter(Color.RED)
@@ -188,12 +183,18 @@ class ItineraryDetailsBottomSheet(
                 if (itinerary.id != null) {
                     itinerary.isLiked = !itinerary.isLiked
                     if (itinerary.isLiked) {
+                        itinerary.likeCount++ // +1
                         ivLike.setImageResource(R.drawable.ic_heart_filled)
                         ivLike.setColorFilter(Color.RED)
                     } else {
+                        itinerary.likeCount-- // -1
                         ivLike.setImageResource(R.drawable.ic_heart_empty)
                         ivLike.setColorFilter(Color.GRAY)
                     }
+
+                    // Mise à jour visuelle instantanée
+                    tvLikeCount.text = itinerary.likeCount.toString()
+
                     lifecycleScope.launch {
                         try {
                             RetrofitInstance.api.toggleLike(userId, itinerary.id!!)
@@ -203,7 +204,6 @@ class ItineraryDetailsBottomSheet(
                 }
             }
 
-            // Logique du bouton Régénérer en haut
             binding.ivDetailRegenerate.setOnClickListener { handleRegenerateAction() }
         }
 
@@ -247,32 +247,19 @@ class ItineraryDetailsBottomSheet(
     private fun deleteItinerary() {
         lifecycleScope.launch {
             try {
-                // Assure-toi que l'itinéraire a bien un ID
                 val itineraryId = itinerary.id ?: return@launch
                 val userId = Firebase.auth.currentUser?.uid ?: ""
 
-                // Appel réseau vers ton backend Ktor
                 val response = RetrofitInstance.api.deletePath(itineraryId, userId)
 
                 if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Itinéraire supprimé", Toast.LENGTH_SHORT)
-                        .show()
-                    dismiss() // On ferme le panneau
-                    // 💡 À NOTER : Quand tu fermeras le panneau, il faudra idéalement que
-                    // ton Fragment principal (PathFragment) rafraîchisse sa liste pour voir l'itinéraire disparaître !
+                    Toast.makeText(requireContext(), "Itinéraire supprimé", Toast.LENGTH_SHORT).show()
+                    dismiss()
                 } else {
-                    Toast.makeText(
-                        requireContext(),
-                        "Erreur lors de la suppression",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(requireContext(), "Erreur lors de la suppression", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(
-                    requireContext(),
-                    "Impossible de joindre le serveur",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(requireContext(), "Impossible de joindre le serveur", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -362,8 +349,7 @@ class ItineraryDetailsBottomSheet(
                 if (itineraryName.isNotBlank()) {
                     saveItineraryToDatabase(itineraryName)
                 } else {
-                    Toast.makeText(context, "Le nom ne peut pas être vide", Toast.LENGTH_SHORT)
-                        .show()
+                    Toast.makeText(context, "Le nom ne peut pas être vide", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Annuler", null)
@@ -392,26 +378,14 @@ class ItineraryDetailsBottomSheet(
                 val response = RetrofitInstance.api.savePath(request)
 
                 if (response.isSuccessful) {
-                    Toast.makeText(
-                        requireContext(),
-                        "Itinéraire sauvegardé avec succès !",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(requireContext(), "Itinéraire sauvegardé avec succès !", Toast.LENGTH_SHORT).show()
                     dismiss()
                 } else {
-                    Toast.makeText(
-                        requireContext(),
-                        "Erreur du serveur : ${response.code()}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(requireContext(), "Erreur du serveur : ${response.code()}", Toast.LENGTH_LONG).show()
                 }
 
             } catch (e: Exception) {
-                Toast.makeText(
-                    requireContext(),
-                    "Impossible de joindre le serveur : ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(requireContext(), "Impossible de joindre le serveur : ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -459,45 +433,36 @@ class ItineraryDetailsBottomSheet(
         _binding = null
     }
 
-    // 1. Le clic sur le bouton déclenche ceci : on demande la photo à la carte
     private fun startPdfDownloadProcess(itineraryId: Int, itineraryName: String) {
         Toast.makeText(requireContext(), "Préparation de la carte...", Toast.LENGTH_SHORT).show()
 
-        // Si la carte n'est pas prête, on télécharge sans image
         if (mapboxMapRef == null) {
             downloadPdf(itineraryId, itineraryName, null)
             return
         }
 
-        // On prend une "photo" de la carte visible à l'écran
         mapboxMapRef?.snapshot { snapshotBitmap ->
             if (snapshotBitmap != null) {
-                // On transforme l'image en texte Base64
                 val base64Image = bitmapToBase64(snapshotBitmap)
                 downloadPdf(itineraryId, itineraryName, base64Image)
             } else {
-                // Échec de la capture, on génère sans image
                 downloadPdf(itineraryId, itineraryName, null)
             }
         }
     }
 
-    // 2. Utilitaire pour convertir l'image
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
-        // On compresse en JPEG pour que l'envoi au serveur soit plus rapide
         bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
         val byteArray = outputStream.toByteArray()
         return Base64.encodeToString(byteArray, Base64.NO_WRAP)
     }
 
-    // 3. L'envoi au serveur (modifié pour inclure l'image Base64)
     private fun downloadPdf(itineraryId: Int, itineraryName: String, base64MapImage: String?) {
         lifecycleScope.launch {
             try {
                 Toast.makeText(requireContext(), "Génération du PDF...", Toast.LENGTH_SHORT).show()
 
-                // NOUVEAU APPEL (On va modifier Retrofit juste après)
                 val response = RetrofitInstance.api.downloadItineraryPdf(itineraryId, base64MapImage)
 
                 if (response.isSuccessful && response.body() != null) {
@@ -515,6 +480,7 @@ class ItineraryDetailsBottomSheet(
             }
         }
     }
+
     private suspend fun savePdfToDownloads(
         body: okhttp3.ResponseBody,
         itineraryName: String
@@ -525,7 +491,6 @@ class ItineraryDetailsBottomSheet(
                 val fileName = "Itineraire_${safeName}.pdf"
 
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    // --- POUR ANDROID 10 ET PLUS (API 29+) ---
                     val resolver = requireContext().contentResolver
                     val contentValues = android.content.ContentValues().apply {
                         put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -549,7 +514,6 @@ class ItineraryDetailsBottomSheet(
                         return@withContext true
                     }
                 } else {
-                    // --- POUR ANDROID 9 ET MOINS (API 28-) ---
                     @Suppress("DEPRECATION")
                     val downloadsDir =
                         android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)

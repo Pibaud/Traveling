@@ -39,10 +39,10 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                 binding.radioMealNo.isChecked = true
             }
 
-            // Catégories (Chips)
+            // Catégories (Chips) - 👇 MISE À JOUR DES IDs 👇
             binding.chipCulture.isChecked = request.categories.contains("CULTURE")
-            binding.chipNature.isChecked = request.categories.contains("DECOUVERTE")
-            binding.chipSport.isChecked = request.categories.contains("LOISIRS")
+            binding.chipDecouverte.isChecked = request.categories.contains("DECOUVERTE")
+            binding.chipLoisirs.isChecked = request.categories.contains("LOISIRS")
 
             // Durée
             val durationId = when (request.durationHours) {
@@ -174,8 +174,8 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         return binding.chipGroupActivities.checkedChipIds.mapNotNull { id ->
             when (id) {
                 R.id.chipCulture -> "CULTURE"
-                R.id.chipNature -> "DECOUVERTE"
-                R.id.chipSport -> "LOISIRS"
+                R.id.chipDecouverte -> "DECOUVERTE" // 👈 Modifié ici
+                R.id.chipLoisirs -> "LOISIRS"       // 👈 Modifié ici
                 else -> null
             }
         }

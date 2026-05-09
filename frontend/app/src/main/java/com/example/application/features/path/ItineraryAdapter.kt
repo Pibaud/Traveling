@@ -8,7 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy // 👈 NOUVEL IMPORT
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.example.application.R
 import com.example.application.model.ItineraryResponse
 import com.google.android.material.card.MaterialCardView
@@ -33,7 +33,9 @@ class ItineraryAdapter(
         val ivCover2: ImageView = view.findViewById(R.id.ivCover2)
         val ivCover3: ImageView = view.findViewById(R.id.ivCover3)
         val ivCover4: ImageView = view.findViewById(R.id.ivCover4)
+
         val ivLike: ImageView = view.findViewById(R.id.ivLike)
+        val tvLikeCount: TextView = view.findViewById(R.id.tvLikeCount) // 👈 Ajout
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -72,20 +74,21 @@ class ItineraryAdapter(
             Glide.with(holder.itemView.context)
                 .load(images[i])
                 .centerCrop()
-                // 👇 STRATÉGIE DE CACHE POUR LE HORS-LIGNE 👇
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .into(imageViews[i])
         }
 
-        // =======================================================
-        // === LA DÉTECTION INTELLIGENTE SUR LES PETITES CARTES ===
-        // =======================================================
         val isGenerated = (item.id == null || item.id == 0)
 
+        // 👇 ON AFFICHE LE CHIFFRE SEULEMENT SI CE N'EST PAS UNE GÉNÉRATION NEUVE
         if (isGenerated) {
             holder.ivLike.visibility = View.GONE
+            holder.tvLikeCount.visibility = View.GONE
         } else {
             holder.ivLike.visibility = View.VISIBLE
+            holder.tvLikeCount.visibility = View.VISIBLE
+
+            holder.tvLikeCount.text = item.likeCount.toString()
 
             if (item.isLiked) {
                 holder.ivLike.setImageResource(R.drawable.ic_heart_filled)
@@ -99,12 +102,17 @@ class ItineraryAdapter(
                 item.isLiked = !item.isLiked
 
                 if (item.isLiked) {
+                    item.likeCount++ // +1 Like
                     holder.ivLike.setImageResource(R.drawable.ic_heart_filled)
                     holder.ivLike.setColorFilter(Color.RED)
                 } else {
+                    item.likeCount-- // -1 Like
                     holder.ivLike.setImageResource(R.drawable.ic_heart_empty)
                     holder.ivLike.setColorFilter(Color.WHITE)
                 }
+
+                // On met à jour le texte instantanément
+                holder.tvLikeCount.text = item.likeCount.toString()
 
                 onLikeClick(item)
             }

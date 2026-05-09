@@ -31,31 +31,28 @@
             android:id="@+id/chipGroupActivities"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:singleLine="true"> <!-- 👈 C'est ça qui force l'affichage sur 1 ligne -->
+            app:singleLine="true"> <com.google.android.material.chip.Chip
+            android:id="@+id/chipCulture"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Culture" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipCulture"
+                android:id="@+id/chipDecouverte"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Culture" />
+                android:text="Découverte" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipNature"
+                android:id="@+id/chipLoisirs"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Nature" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipSport"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Sport" />
+                android:text="Loisirs" />
         </com.google.android.material.chip.ChipGroup>
 
-        <!-- La question pour le repas -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

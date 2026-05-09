@@ -38,10 +38,9 @@ class PathFragment : Fragment(R.layout.fragment_path) {
             val likedPaths = fetchOrLoadCache(userId, "LIKED")
             val popularPaths = fetchOrLoadCache(userId, "POPULAR")
 
-            // 2. Construire la liste "maîtresse" des catégories
             val categoriesList = mutableListOf<CategoryRow>()
 
-            // On ajoute les catégories SEULEMENT si elles ne sont pas vides
+            // 2. Sections de base
             if (myPaths.isNotEmpty()) {
                 categoriesList.add(CategoryRow("Mes itinéraires", myPaths))
             }
@@ -52,7 +51,35 @@ class PathFragment : Fragment(R.layout.fragment_path) {
                 categoriesList.add(CategoryRow("Les plus populaires", popularPaths))
             }
 
-            // 3. Donner la liste complète à notre NOUVEL Adapteur vertical
+            // 👇 3. LECTURE DU CACHE ET CRÉATION DES CATÉGORIES DYNAMIQUES 👇
+            val prefs = requireContext().getSharedPreferences("UserPrefs", android.content.Context.MODE_PRIVATE)
+            val wantsCulture = prefs.getBoolean("pref_culture", false)
+            val wantsDecouverte = prefs.getBoolean("pref_decouverte", false)
+            val wantsLoisirs = prefs.getBoolean("pref_loisirs", false)
+
+            if (wantsCulture) {
+                // On cherche les itinéraires qui contiennent AU MOINS UNE étape "CULTURE"
+                val culturePaths = popularPaths.filter { itin -> itin.steps.any { it.category.name == "CULTURE" } }
+                if (culturePaths.isNotEmpty()) {
+                    categoriesList.add(CategoryRow("Les meilleures sorties Culture", culturePaths))
+                }
+            }
+
+            if (wantsDecouverte) {
+                val decouvertePaths = popularPaths.filter { itin -> itin.steps.any { it.category.name == "DECOUVERTE" } }
+                if (decouvertePaths.isNotEmpty()) {
+                    categoriesList.add(CategoryRow("Les meilleures sorties Découverte", decouvertePaths))
+                }
+            }
+
+            if (wantsLoisirs) {
+                val loisirsPaths = popularPaths.filter { itin -> itin.steps.any { it.category.name == "LOISIRS" } }
+                if (loisirsPaths.isNotEmpty()) {
+                    categoriesList.add(CategoryRow("Les meilleures sorties Loisirs", loisirsPaths))
+                }
+            }
+
+            // 4. On donne tout à notre super adapteur
             binding.rvMainCategories.adapter = CategoryAdapter(
                 categories = categoriesList,
                 onItemClick = { selectedItinerary ->

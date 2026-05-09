@@ -11,7 +11,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/bottom_sheet_background">
-        <!-- paddingBottom a été supprimé ici ! -->
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -35,7 +34,6 @@
                 android:gravity="end|center_vertical"
                 android:paddingHorizontal="16dp">
 
-                <!-- Bouton Régénérer -->
                 <ImageView
                     android:id="@+id/ivDetailRegenerate"
                     android:layout_width="48dp"
@@ -45,7 +43,6 @@
                     android:src="@drawable/ic_regenerate"
                     app:tint="@color/black" />
 
-                <!-- Bouton Télécharger PDF -->
                 <ImageView
                     android:id="@+id/ivDetailDownload"
                     android:layout_width="48dp"
@@ -60,22 +57,36 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
 
-                <!-- bouton Like -->
-                <ImageView
-                    android:id="@+id/ivDetailLike"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:padding="12dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_heart_empty"
-                    app:tint="@color/black" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/ivDetailLike"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:padding="12dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_heart_empty"
+                        app:tint="@color/black" />
+
+                    <TextView
+                        android:id="@+id/tvDetailLikeCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textStyle="bold"
+                        android:textColor="@color/black"
+                        android:layout_marginTop="-8dp"
+                        tools:text="12" />
+                </LinearLayout>
 
                 <Space
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
 
-                <!-- bouton Poubelle -->
                 <ImageView
                     android:id="@+id/ivDetailDelete"
                     android:layout_width="48dp"
@@ -155,10 +166,21 @@
                 android:clipToPadding="false"
                 android:clipChildren="false"/>
 
+            <TextView
+                android:id="@+id/tvAuthorName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAlignment="center"
+                android:textColor="#808080"
+                android:textStyle="italic"
+                android:textSize="14sp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="32dp"
+                tools:text="Itinéraire créé par @Gérome" />
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- La barre d'actions du bas (Situation 1) -->
     <LinearLayout
         android:id="@+id/bottomActionBar"
         android:layout_width="match_parent"

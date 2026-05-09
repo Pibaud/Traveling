@@ -27,7 +27,7 @@ import org.jetbrains.exposed.sql.count
 object PathService {
     suspend fun generatePath(req: GeneratePathRequest): List<ItineraryResponse> = dbQuery {
 
-        // 1. Récupération de TOUS les lieux avec du SQL Brut, en incluant opening_hours
+        // 1. Récupération de TOUS les lieux avec du SQL Brut
         val sql = """
             SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng, price, duration, effort, opening_hours::text as opening_hours
             FROM places
@@ -46,12 +46,11 @@ object PathService {
                     price = rs.getInt("price"),
                     duration = rs.getInt("duration"),
                     effort = rs.getInt("effort"),
-                    openingHours = rs.getString("opening_hours") // NOUVEAU
+                    openingHours = rs.getString("opening_hours")
                 ))
             }
         }
 
-        // 2. Séparation entre lieux Obligatoires et Candidats
         val mandatoryPlaces = allPlaces.filter { it.id in req.selectedPlaceIds }
 
         val requestedCategories = req.categories.map {
@@ -67,11 +66,6 @@ object PathService {
                     it.id !in req.selectedPlaceIds
         }
 
-        println("Lieux totaux dans la BDD : ${allPlaces.size}")
-        println("Catégories demandées : $requestedCategories")
-        println("Lieux candidats trouvés : ${candidatePlaces.size}")
-
-        // VÉRIFICATION IMMÉDIATE DU BUDGET/TEMPS DE BASE
         val mandatoryCost = mandatoryPlaces.sumOf { it.price }
         val mandatoryDuration = mandatoryPlaces.sumOf { it.duration }
 
@@ -83,12 +77,11 @@ object PathService {
             ))
         }
 
-        // 3. Fonction de remplissage intelligente AVEC GESTION DU TEMPS
         fun buildVariant(name: String, color: String, sortedCandidates: List<Place>): ItineraryResponse {
             val finalSteps = mutableListOf<Place>()
             var currentCost = 0
             var currentDuration = 0
-            var currentTimeMinutes = req.startTimeMinutes // On démarre l'horloge à l'heure choisie !
+            var currentTimeMinutes = req.startTimeMinutes
 
             for (place in mandatoryPlaces) {
                 finalSteps.add(place.copy(arrivalTime = formatTime(currentTimeMinutes)))
@@ -105,7 +98,6 @@ object PathService {
                     val estimatedDeparture = currentTimeMinutes + placeDurationMin
 
                     if (isPlaceOpen(place.openingHours, estimatedArrival, estimatedDeparture)) {
-                        // 👈 On utilise .copy() pour injecter l'heure d'arrivée
                         finalSteps.add(place.copy(arrivalTime = formatTime(estimatedArrival)))
                         currentCost += place.price
                         currentDuration += place.duration
@@ -115,7 +107,6 @@ object PathService {
             }
 
             val coverImages = getTopImagesForPlaces(finalSteps)
-
             val placesWithSchedules = recalculateSchedules(finalSteps)
 
             return ItineraryResponse(
@@ -126,19 +117,19 @@ object PathService {
                 avgEffort = if(finalSteps.isEmpty()) 0 else finalSteps.sumOf { it.effort } / finalSteps.size,
                 mealIncluded = finalSteps.any { it.category.name == "RESTAURATION" },
                 steps = placesWithSchedules,
-                coverImages = coverImages
+                coverImages = coverImages,
+                likeCount = 0,
+                authorName = "IA Traveling" // 👈 Nom par défaut pour les itinéraires fraîchement générés
             )
         }
 
-        // 4. Génération des 3 variantes
         val result = listOf(
             buildVariant("Éco", "#2D5A27", candidatePlaces.sortedBy { it.price }),
             buildVariant("Équilibré", "#E59866", candidatePlaces.shuffled()),
             buildVariant("Confort", "#884154", candidatePlaces.sortedByDescending { it.price })
         )
 
-        // On retourne la liste
-        result
+        return@dbQuery result
     }
 
     suspend fun savePath(request: SavePathRequest) = dbQuery {
@@ -162,24 +153,21 @@ object PathService {
     }
 
     suspend fun toggleLike(userId: String, itineraryId: Int): Boolean = dbQuery {
-        // On cherche si le like existe déjà
         val existingLike = ItineraryLikes.select {
             (ItineraryLikes.userId eq userId) and (ItineraryLikes.itineraryId eq itineraryId)
         }.singleOrNull()
 
         if (existingLike != null) {
-            // S'il existe, on l'enlève (Dislike)
             ItineraryLikes.deleteWhere {
                 (ItineraryLikes.userId eq userId) and (ItineraryLikes.itineraryId eq itineraryId)
             }
-            false // Retourne false = n'est plus liké
+            false
         } else {
-            // S'il n'existe pas, on l'ajoute (Like)
             ItineraryLikes.insert {
                 it[this.userId] = userId
                 it[this.itineraryId] = itineraryId
             }
-            true // Retourne true = est maintenant liké
+            true
         }
     }
 
@@ -192,27 +180,52 @@ object PathService {
 
         val query = when (category) {
             "SUGGESTIONS" -> Itineraries.selectAll().limit(10)
-
-            "LIKED" -> Itineraries.innerJoin(ItineraryLikes)
-                .select { ItineraryLikes.userId eq userId }
-
-            // 👇 LA NOUVELLE CATÉGORIE POPULAIRE 👇e
+            "LIKED" -> Itineraries.innerJoin(ItineraryLikes).select { ItineraryLikes.userId eq userId }
             "POPULAR" -> {
                 val likeCount = ItineraryLikes.userId.count()
                 Itineraries.innerJoin(ItineraryLikes)
-                    .slice(Itineraries.columns + likeCount) // On récupère les infos de l'itinéraire + le nombre de likes
+                    .slice(Itineraries.columns + likeCount)
                     .selectAll()
-                    .groupBy(Itineraries.id) // Postgres comprend que l'ID suffit pour regrouper
-                    .orderBy(likeCount to SortOrder.DESC) // Du plus liké au moins liké
-                    .limit(10) // On prend le Top 10
+                    .groupBy(Itineraries.id)
+                    .orderBy(likeCount to SortOrder.DESC)
+                    .limit(30)
             }
-
             else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
         }
 
-        query.map { row ->
+        val rows = query.toList()
+        if (rows.isEmpty()) return@dbQuery emptyList()
+
+        val itineraryIds = rows.map { it[Itineraries.id] }
+        val authorIds = rows.map { it[Itineraries.authorId] }.distinct() // On récupère tous les auteurs uniques
+
+        val allLikes = ItineraryLikes
+            .select { ItineraryLikes.itineraryId inList itineraryIds }
+            .toList()
+
+        // 👇 LA MAGIE : On récupère tous les pseudos des auteurs en UNE SEULE requête ! 👇
+        val authorNamesMap = mutableMapOf<String, String>()
+        if (authorIds.isNotEmpty()) {
+            val idsFormatted = authorIds.joinToString("','", "'", "'")
+            val sqlUsers = "SELECT firebase_id, username FROM users WHERE firebase_id IN ($idsFormatted)"
+
+            TransactionManager.current().exec(sqlUsers) { rs ->
+                while (rs.next()) {
+                    val fId = rs.getString("firebase_id")
+                    val uName = rs.getString("username")
+                    if (fId != null && uName != null) {
+                        authorNamesMap[fId] = uName
+                    }
+                }
+            }
+        }
+
+        rows.map { row ->
             val itineraryId = row[Itineraries.id]
             val authorId = row[Itineraries.authorId]
+
+            // On associe le pseudo trouvé (ou "Utilisateur" si introuvable)
+            val currentAuthorName = authorNamesMap[authorId] ?: "Utilisateur"
 
             val sql = """
             SELECT p.id, p.name, p.category, ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lng, p.price, p.duration, p.effort, p.opening_hours::text as opening_hours
@@ -241,8 +254,8 @@ object PathService {
             }
 
             val coverImages = getTopImagesForPlaces(places)
-
             val placesWithSchedules = recalculateSchedules(places)
+            val totalLikesForThisItinerary = allLikes.count { it[ItineraryLikes.itineraryId] == itineraryId }
 
             ItineraryResponse(
                 id = itineraryId,
@@ -255,17 +268,27 @@ object PathService {
                 steps = placesWithSchedules,
                 coverImages = coverImages,
                 isLiked = likedItineraryIds.contains(itineraryId),
-                userId = authorId
+                likeCount = totalLikesForThisItinerary,
+                userId = authorId,
+                authorName = currentAuthorName // 👈 ON INJECTE LE VRAI PSEUDO ICI !
             )
         }
     }
 
     suspend fun getItineraryById(itineraryId: Int): ItineraryResponse? = dbQuery {
-        // 1. On cherche l'itinéraire principal
         val row = Itineraries.select { Itineraries.id eq itineraryId }.singleOrNull()
-            ?: return@dbQuery null // S'il n'existe pas, on renvoie null
+            ?: return@dbQuery null
 
-        // 2. On récupère les étapes associées
+        val authorId = row[Itineraries.authorId]
+        var currentAuthorName = "Utilisateur"
+
+        // 👇 Requête simple pour récupérer le pseudo d'un seul auteur 👇
+        TransactionManager.current().exec("SELECT username FROM users WHERE firebase_id = '$authorId'") { rs ->
+            if (rs.next()) {
+                currentAuthorName = rs.getString("username") ?: "Utilisateur"
+            }
+        }
+
         val sql = """
             SELECT p.id, p.name, p.category, ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lng, p.price, p.duration, p.effort, p.opening_hours::text as opening_hours
             FROM step s
@@ -293,8 +316,8 @@ object PathService {
         }
 
         val placesWithSchedules = recalculateSchedules(places)
+        val totalLikes = ItineraryLikes.select { ItineraryLikes.itineraryId eq itineraryId }.count()
 
-        // 3. On renvoie l'objet complet
         ItineraryResponse(
             id = itineraryId,
             name = row[Itineraries.name],
@@ -303,41 +326,33 @@ object PathService {
             totalDuration = row[Itineraries.totalDuration] ?: 0,
             avgEffort = (row[Itineraries.avgEffort] ?: 0.0).roundToInt(),
             mealIncluded = row[Itineraries.mealIncluded] ?: false,
-            steps = placesWithSchedules
+            steps = placesWithSchedules,
+            likeCount = totalLikes.toInt(),
+            userId = authorId,
+            authorName = currentAuthorName // 👈 ON INJECTE LE VRAI PSEUDO ICI AUSSI !
         )
     }
 
     suspend fun deletePath(userId: String, itineraryId: Int): Boolean = dbQuery {
-        // Optionnel mais recommandé : Vérifier que l'utilisateur est bien le propriétaire avant de supprimer
         val itinerary = Itineraries.select { Itineraries.id eq itineraryId }.singleOrNull()
 
         if (itinerary == null || itinerary[Itineraries.authorId] != userId) {
-            return@dbQuery false // N'existe pas ou n'appartient pas à l'utilisateur
+            return@dbQuery false
         }
 
-        // On supprime d'abord les dépendances (étapes et likes)
         Steps.deleteWhere { Steps.itineraryId eq itineraryId }
         ItineraryLikes.deleteWhere { ItineraryLikes.itineraryId eq itineraryId }
-
-        // Ensuite on supprime l'itinéraire principal
         val deletedCount = Itineraries.deleteWhere { Itineraries.id eq itineraryId }
 
         return@dbQuery deletedCount > 0
     }
 
-    // --- FONCTION UTILITAIRE : VÉRIFICATION DU TEMPS ---
     private fun isPlaceOpen(jsonStr: String?, arrivalMin: Int, departureMin: Int): Boolean {
-        // Si le lieu n'a pas d'horaires dans la base, on le considère toujours ouvert
         if (jsonStr.isNullOrEmpty() || jsonStr == "null") return true
-
         try {
             val jsonArray = Json.parseToJsonElement(jsonStr).jsonArray
-
-            // On normalise l'arrivée/départ sur 24h au cas où l'itinéraire dépasse minuit
             val arrivalNormalized = arrivalMin % (24 * 60)
             var departureNormalized = departureMin % (24 * 60)
-
-            // Si la visite chevauche minuit (ex: 23h30 à 01h00), on ajuste pour le calcul
             if (departureNormalized < arrivalNormalized) departureNormalized += 24 * 60
 
             for (element in jsonArray) {
@@ -345,24 +360,21 @@ object PathService {
                 val openStr = obj["open"]?.jsonPrimitive?.content ?: continue
                 val closeStr = obj["close"]?.jsonPrimitive?.content ?: continue
 
-                // Convertir "10:30" en minutes : (10 * 60) + 30
                 val openParts = openStr.split(":")
                 val closeParts = closeStr.split(":")
                 val openMin = openParts[0].toInt() * 60 + openParts[1].toInt()
                 var closeMin = closeParts[0].toInt() * 60 + closeParts[1].toInt()
 
-                // Si l'horaire de fermeture est après minuit (ex: 02:00)
                 if (closeMin < openMin) closeMin += 24 * 60
 
-                // Le lieu est valide si on arrive APRES l'ouverture et qu'on repart AVANT la fermeture
                 if (arrivalNormalized >= openMin && departureNormalized <= closeMin) {
                     return true
                 }
             }
-            return false // Aucun créneau ne permettait la visite complète
+            return false
         } catch (e: Exception) {
             println("Erreur de parsing des horaires : ${e.localizedMessage}")
-            return true // En cas d'erreur de format dans la BDD, on ne bloque pas la génération
+            return true
         }
     }
 
@@ -372,14 +384,12 @@ object PathService {
         return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}"
     }
 
-    // Fonction pour récupérer jusqu'à 4 images pour un itinéraire
     private fun getTopImagesForPlaces(places: List<Place>): List<String> {
         if (places.isEmpty()) return emptyList()
 
         val placeIds = places.map { it.id }.joinToString("','", "'", "'")
         val imageUrls = mutableListOf<String>()
 
-        // On cherche les posts liés à ces lieux, triés par le nombre de likes
         val sql = """
             SELECT p.image_urls
             FROM posts p
@@ -393,23 +403,19 @@ object PathService {
             while (rs.next()) {
                 val urlsString = rs.getString("image_urls")
                 if (!urlsString.isNullOrBlank()) {
-                    // Les urls sont séparées par des virgules, on les coupe
                     val urls = urlsString.split(",").map { it.trim() }
                     imageUrls.addAll(urls)
                 }
             }
         }
-
-        // On retourne uniquement les 4 premières images distinctes (ou moins s'il n'y en a pas assez)
         return imageUrls.distinct().take(4)
     }
 
-    // --- FONCTION POUR RECALCULER LES HORAIRES LORS DE LA LECTURE DB ---
     private fun recalculateSchedules(places: List<Place>, startTimeMinutes: Int = 570): List<Place> {
         var currentTimeMinutes = startTimeMinutes
         return places.map { place ->
             val arrival = formatTime(currentTimeMinutes)
-            currentTimeMinutes += (place.duration * 60) + 30 // On ajoute la durée + 30min de trajet
+            currentTimeMinutes += (place.duration * 60) + 30
             place.copy(arrivalTime = arrival)
         }
     }
