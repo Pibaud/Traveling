@@ -41,6 +41,7 @@ import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import kotlinx.coroutines.launch
 import com.example.application.R
+import com.example.application.features.profile.CreatorProfileBottomSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -143,6 +144,13 @@ class ItineraryDetailsBottomSheet(
             // 👇 On affiche le pseudo de l'auteur ! 👇
             binding.tvAuthorName.visibility = View.VISIBLE
             binding.tvAuthorName.text = "Itinéraire créé par @${itinerary.authorName}"
+
+            binding.tvAuthorName.setOnClickListener {
+                if (itinerary.userId.isNotBlank()) {
+                    val creatorProfileSheet = CreatorProfileBottomSheet(itinerary.userId)
+                    creatorProfileSheet.show(parentFragmentManager, "CreatorProfile")
+                }
+            }
 
             binding.nestedScrollView.setPadding(0, 0, 0, (16 * density).toInt())
 
