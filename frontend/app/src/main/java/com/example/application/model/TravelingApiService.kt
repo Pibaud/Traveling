@@ -14,8 +14,11 @@ import retrofit2.http.Query
 import com.example.application.model.Post
 import com.example.application.model.ItineraryResponse
 import com.example.application.model.SavePathRequest
+import com.example.application.model.UpdateProfileRequest
+import com.example.application.model.UserProfileResponse
 import retrofit2.Response
 import retrofit2.http.DELETE
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Streaming
 
@@ -102,4 +105,17 @@ interface TravelingApiService {
     suspend fun downloadItineraryPdf(
         @Path("id") id: Int,
         @Body base64MapImage: String? // Le Body attendra une simple String
-    ): Response<okhttp3.ResponseBody>}
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("/users/{uid}/profile")
+    suspend fun getUserProfile(@Path("uid") uid: String): Response<UserProfileResponse>
+
+    @PUT("/users/{uid}/profile")
+    suspend fun updateProfile(
+        @Path("uid") uid: String,
+        @Body request: UpdateProfileRequest
+    ): Response<Map<String, String>>
+
+}
+
+

@@ -1,78 +1,213 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F5F5">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/white"
-            app:title="Profil"/>
-    </com.google.android.material.appbar.AppBarLayout>
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout">
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Vos centres d'intérêt"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp"/>
+        <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/appBarLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="@android:color/white"
+                app:title="Profil"/>
+        </com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/chipGroupPreferences"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:singleLine="false">
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="24dp"
+            android:background="@color/white">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipPrefCulture"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/ivAvatar"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
+                app:cornerFamily="rounded"
+                app:cornerSize="50dp"
+                android:background="#E0E0E0" />
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Culture" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipPrefDecouverte"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
+                <TextView
+                    android:id="@+id/tvUsername"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black"
+                    tools:text="\@Gérome" />
+
+                <ImageView
+                    android:id="@+id/ivEditProfile"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="8dp"
+                    android:src="@drawable/ic_edit"
+                    app:tint="#884154"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="4dp"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvBio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Découverte" />
+                android:layout_marginTop="8dp"
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:textAlignment="center"
+                tools:text="Explorateur du dimanche 🎒\nJ'adore la montagne et le bon vin !" />
+        </LinearLayout>
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipPrefLoisirs"
-                style="@style/Widget.MaterialComponents.Chip.Filter"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:layout_marginBottom="8dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    app:cardElevation="2dp"
+                    app:cardCornerRadius="12dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp">
+                        <TextView android:id="@+id/tvStatCreated" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="24sp" tools:text="12"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Itinéraires créés" android:textSize="12sp" android:textAlignment="center"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="4dp"
+                    app:cardElevation="2dp"
+                    app:cardCornerRadius="12dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp">
+                        <TextView android:id="@+id/tvStatLiked" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="24sp" tools:text="45"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lieux likés" android:textSize="12sp" android:textAlignment="center"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    app:cardElevation="2dp"
+                    app:cardCornerRadius="12dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp">
+                        <TextView android:id="@+id/tvStatReceivedLikes" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="24sp" android:textColor="#E53935" tools:text="340"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Likes reçus" android:textSize="12sp" android:textAlignment="center"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="4dp"
+                    app:cardElevation="2dp"
+                    app:cardCornerRadius="12dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp">
+                        <TextView android:id="@+id/tvStatHours" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="24sp" tools:text="84"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Heures générées" android:textSize="12sp" android:textAlignment="center"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Loisirs" />
-        </com.google.android.material.chip.ChipGroup>
+                android:text="Vos centres d'intérêt"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupPreferences"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleLine="false">
+
+                <com.google.android.material.chip.Chip android:id="@+id/chipPrefCulture" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Culture" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipPrefDecouverte" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Découverte" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipPrefLoisirs" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Loisirs" />
+            </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginBottom="32dp"
+            android:text="Se déconnecter"
+            android:backgroundTint="#7A1C2A" />
 
     </LinearLayout>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnLogout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Se déconnecter"
-        android:backgroundTint="#7A1C2A"
-        android:layout_marginBottom="32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>

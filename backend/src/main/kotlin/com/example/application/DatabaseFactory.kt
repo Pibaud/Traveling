@@ -82,6 +82,8 @@ object Users : Table("users") {
     val firebaseId = varchar("firebase_id", 128)
     val email = varchar("email", 255)
     val username = varchar("username", 100).nullable()
+    val bio = text("bio").nullable()
+    val avatarUrl = text("avatar_url").nullable()
 
     // CORRECTION : On utilise datetime au lieu de long
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
