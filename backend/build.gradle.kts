@@ -51,4 +51,7 @@ dependencies {
 
     // Pour les PDF
     implementation("com.itextpdf:itext7-core:7.2.5")
+
+    // Pour les notifs
+    implementation("com.google.firebase:firebase-admin:9.2.0")
 }

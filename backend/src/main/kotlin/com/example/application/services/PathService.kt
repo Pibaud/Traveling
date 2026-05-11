@@ -144,6 +144,19 @@ object PathService {
             it[authorId] = request.userId
         } get Itineraries.id
 
+        val tokens = UserService.getFollowerTokens(request.userId)
+
+// Optionnel : récupère le pseudo de l'auteur dans la BDD s'il n'est pas dans la requête
+        val authorProfile = UserService.getUserProfile(request.userId, null)
+        val authorName = authorProfile?.username ?: "Un voyageur"
+
+// On lance la notification !
+        NotificationService.notifyFollowersNewItinerary(
+            authorName = authorName,
+            itineraryName = request.name, // Le nom de l'itinéraire
+            tokens = tokens
+        )
+
         request.placeIds.forEachIndexed { index, placeId ->
             Steps.insert {
                 it[itineraryId] = newItineraryId

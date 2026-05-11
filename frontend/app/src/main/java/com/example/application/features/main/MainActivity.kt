@@ -1,12 +1,16 @@
 package com.example.application.features.main
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.example.application.R
@@ -24,6 +28,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                    if (isGranted) println("Permission notifications accordée !")
+                }.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         binding = MainActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

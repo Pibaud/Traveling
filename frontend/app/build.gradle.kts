@@ -96,4 +96,7 @@ dependencies {
 
     // Si tu utilises Gson pour parser facilement tes objets en String :
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Pour les notifications
+    implementation("com.google.firebase:firebase-messaging-ktx")
 }

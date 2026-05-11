@@ -129,6 +129,12 @@ interface TravelingApiService {
         @Body request: UpdateProfileRequest
     ): Response<Map<String, String>>
 
+    @POST("/users/{uid}/fcm-token")
+    suspend fun updateFcmToken(
+        @Path("uid") uid: String,
+        @Body request: Map<String, String>
+    ): Response<Unit>
+
 }
 
 

@@ -87,6 +87,7 @@ object Users : Table("users") {
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
     override val primaryKey = PrimaryKey(firebaseId)
     val preferences = text("preferences").nullable()
+    val fcmToken = text("fcm_token").nullable()
 }
 
 object Groups : Table("groups") {

@@ -1,5 +1,7 @@
 package com.example.application.routes
 
+import com.example.application.DatabaseFactory
+import com.example.application.Users
 import com.example.application.models.UpdateProfileRequest
 import com.example.application.models.UserSyncRequest
 import com.example.application.services.UserService
@@ -8,6 +10,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.http.*
 import io.ktor.server.request.receive
+import org.jetbrains.exposed.sql.update
 
 fun Route.userRoutes() {
     post("/users/sync") {
@@ -50,5 +53,20 @@ fun Route.userRoutes() {
         val targetUid = call.parameters["targetUid"] ?: return@post call.respond(HttpStatusCode.BadRequest)
         val isNowFollowing = UserService.toggleFollow(uid, targetUid)
         call.respond(HttpStatusCode.OK, mapOf("isFollowing" to isNowFollowing))
+    }
+
+    post("/users/{uid}/fcm-token") {
+        val uid = call.parameters["uid"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+        val request = call.receive<Map<String, String>>()
+        val token = request["fcmToken"]
+
+        val updated = DatabaseFactory.dbQuery {
+            Users.update({ Users.firebaseId eq uid }) {
+                it[Users.fcmToken] = token
+            } > 0
+        }
+
+        if (updated) call.respond(HttpStatusCode.OK)
+        else call.respond(HttpStatusCode.InternalServerError)
     }
 }

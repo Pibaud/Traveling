@@ -87,4 +87,17 @@ object UserService {
             true // Abonné
         }
     }
+
+    suspend fun getFollowerTokens(authorId: String): List<String> = dbQuery {
+        // 1. Trouver les ID de tous ceux qui suivent cet auteur
+        val followerIds = UserFollows
+            .select { UserFollows.followedId eq authorId }
+            .map { it[UserFollows.followerId] }
+
+        if (followerIds.isEmpty()) return@dbQuery emptyList()
+
+        // 2. Récupérer les tokens FCM de ces utilisateurs (en ignorant ceux qui sont nuls)
+        Users.select { (Users.firebaseId inList followerIds) and Users.fcmToken.isNotNull() }
+            .mapNotNull { it[Users.fcmToken] }
+    }
 }
