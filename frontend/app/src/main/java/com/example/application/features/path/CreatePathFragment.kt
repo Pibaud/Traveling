@@ -21,9 +21,24 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
     private var _binding: FragmentCreatePathBinding? = null
     private val binding get() = _binding!!
 
+    private var forcedPlaceId: String? = null
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentCreatePathBinding.bind(view)
+
+        // --- RÉCUPÉRATION DU LIEU IMPOSÉ ---
+        arguments?.getString("forcedPlaceId")?.let { id ->
+            forcedPlaceId = id
+            val name = arguments?.getString("forcedPlaceName") ?: "Ce lieu"
+
+            // On rend visible un composant d'indication (à ajouter dans ton XML)
+            binding.llForcedPlaceIndicator.visibility = View.VISIBLE
+            binding.tvForcedPlaceName.text = name
+
+            // Optionnel : masquer la sélection d'activités si on veut simplifier
+            Toast.makeText(context, "Génération centrée sur $name", Toast.LENGTH_SHORT).show()
+        }
 
         setupDynamicVisuals()
 
@@ -62,6 +77,8 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         }
 
         binding.btnGenerate.setOnClickListener {
+            // On crée la liste des IDs sélectionnés (qui contient notre lieu imposé)
+            val selectedIds = if (forcedPlaceId != null) listOf(forcedPlaceId!!) else emptyList()
             // 1. On récupère et convertit l'heure tapée (ex: "09:30" -> 570)
             val timeString = binding.etStartTime.text.toString()
             val timeParts = timeString.split(":")
@@ -75,7 +92,7 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             // 2. On crée la requête
             val request = GeneratePathRequest(
                 categories = getDbMappedActivities(),
-                selectedPlaceIds = emptyList(),
+                selectedPlaceIds = selectedIds,
                 budgetMax = binding.etBudget.text.toString().toIntOrNull() ?: 100,
                 durationHours = getSelectedDurationInHours(),
                 effortLevel = binding.sliderEffort.value.toInt(),
@@ -110,6 +127,17 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                     Toast.makeText(requireContext(), "Erreur de connexion", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+
+        binding.tvForcedPlaceName.setOnCloseIconClickListener {
+            // 1. On remet l'ID à null (technique)
+            forcedPlaceId = null
+
+            // 2. On cache le bandeau (visuel)
+            binding.llForcedPlaceIndicator.visibility = View.GONE
+
+            // 3. On informe l'utilisateur
+            Toast.makeText(context, "Lieu retiré de l'itinéraire", Toast.LENGTH_SHORT).show()
         }
     }
 

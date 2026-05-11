@@ -19,6 +19,10 @@ import com.example.application.features.discovery.PlacePostsAdapter
 import com.example.application.model.RetrofitInstance
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
+import androidx.navigation.fragment.findNavController
+import com.example.application.utils.GuestUpsellBottomSheet
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 class PlaceDetailsBottomSheet(
     private val place: Place
@@ -69,15 +73,68 @@ class PlaceDetailsBottomSheet(
 
         // 5. Configuration des clics (Les fameux Toasts)
         btnViewItineraries.setOnClickListener {
-            Toast.makeText(context, "Voir les itinéraires passant par ${place.name}", Toast.LENGTH_SHORT).show()
+            // URI spéciale pour lancer directement la navigation GPS vers la destination
+            val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${place.latitude},${place.longitude}")
+
+            // Création de l'Intent (l'action d'afficher quelque chose)
+            val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+
+            // On essaie de forcer l'ouverture avec l'application native Google Maps
+            mapIntent.setPackage("com.google.android.apps.maps")
+
+            try {
+                // On lance l'application
+                startActivity(mapIntent)
+            } catch (e: android.content.ActivityNotFoundException) {
+                // Fallback (Plan B) : Si l'utilisateur n'a pas l'application Google Maps installée,
+                // on ouvre la page d'itinéraire dans son navigateur web classique.
+                val fallbackUri = android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}")
+                val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, fallbackUri)
+                startActivity(webIntent)
+            }
         }
 
         btnAddPost.setOnClickListener {
-            Toast.makeText(context, "Ajouter une photo pour ${place.name}", Toast.LENGTH_SHORT).show()
+            // 1. Vérification du statut de l'utilisateur
+            val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+
+            if (isGuest) {
+                // 2. Si invité, on affiche la popup d'upsell
+                GuestUpsellBottomSheet().show(childFragmentManager, "GuestUpsell")
+            } else {
+                // 3. Si connecté, on prépare le paquet de données (Bundle)
+                val bundle = Bundle().apply {
+                    putString("placeId", place.id)
+                    putString("placeName", place.name)
+                    putDouble("placeLat", place.latitude)
+                    putDouble("placeLng", place.longitude)
+                    putString("placeCategory", place.category.name)
+                }
+
+                // 4. On navigue vers CreatePostFragment en lui passant le paquet
+                // (Assure-toi que l'ID correspond bien à la destination dans ton nav_graph.xml)
+                findNavController().navigate(R.id.createPostFragment, bundle)
+
+                // Optionnel : fermer le BottomSheet actuel pour que l'utilisateur
+                // retombe sur la carte/grille après avoir publié son post
+                dismiss()
+            }
         }
 
         btnGenerateWith.setOnClickListener {
-            Toast.makeText(context, "Génération d'un itinéraire incluant ${place.name}...", Toast.LENGTH_SHORT).show()
+            val isGuest = Firebase.auth.currentUser?.isAnonymous == true
+
+            if (isGuest) {
+                GuestUpsellBottomSheet().show(childFragmentManager, "GuestUpsell")
+            } else {
+                val bundle = Bundle().apply {
+                    putString("forcedPlaceId", place.id)
+                    putString("forcedPlaceName", place.name)
+                }
+                // Navigation vers le fragment de création de parcours
+                findNavController().navigate(R.id.createPathFragment, bundle)
+                dismiss()
+            }
         }
     }
 

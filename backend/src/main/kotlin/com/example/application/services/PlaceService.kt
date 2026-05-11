@@ -10,17 +10,19 @@ object PlaceService {
 
     suspend fun searchByBoundingBox(minLat: Double, minLng: Double, maxLat: Double, maxLng: Double): List<Place> {
         return DatabaseFactory.dbQuery {
+            // VRAIE requête PostGIS pour chercher dans une zone (Bounding Box)
+            // L'opérateur && vérifie si la localisation intersecte l'enveloppe créée.
+            // 4326 est le système de coordonnées standard GPS (WGS 84).
             val sql = """
                 SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng, price, duration, effort 
                 FROM places 
-                WHERE name ILIKE ? 
-                LIMIT ?
+                WHERE location && ST_MakeEnvelope(?, ?, ?, ?, 4326)
+                LIMIT 100
             """.trimIndent()
 
             val results = mutableListOf<Place>()
 
-            // On utilise transaction { exec(...) } pour Exposed
-            // L'ordre PostGIS : minLon, minLat, maxLon, maxLat
+            // L'ordre PostGIS : minLng, minLat, maxLng, maxLat
             org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
                 sql,
                 args = listOf(
