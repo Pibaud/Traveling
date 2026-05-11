@@ -19,8 +19,25 @@ fun MaterialAutoCompleteTextView.setupPlaceAutocomplete(
     var searchJob: Job? = null
     var currentPlaces = listOf<Place>()
 
-    // Adaptateur simple pour afficher les noms dans la liste déroulante
-    val adapter = ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, mutableListOf())
+    // 👇 1. CRÉATION D'UN ADAPTER PERSONNALISÉ SANS FILTRE LOCAL
+    val adapter = object : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, mutableListOf()) {
+        override fun getFilter(): android.widget.Filter {
+            return object : android.widget.Filter() {
+                // On désactive le filtre natif d'Android : on accepte TOUT ce que le backend envoie
+                override fun performFiltering(constraint: CharSequence?): FilterResults {
+                    val results = FilterResults()
+                    results.values = currentPlaces.map { it.name }
+                    results.count = currentPlaces.size
+                    return results
+                }
+
+                override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                    notifyDataSetChanged()
+                }
+            }
+        }
+    }
+
     this.setAdapter(adapter)
 
     this.addTextChangedListener(object : TextWatcher {
@@ -33,6 +50,7 @@ fun MaterialAutoCompleteTextView.setupPlaceAutocomplete(
             searchJob?.cancel() // Annule la recherche précédente si l'utilisateur tape vite
 
             if (query.length < 2) {
+                currentPlaces = emptyList() // On vide aussi notre liste de référence
                 adapter.clear()
                 return
             }
@@ -42,9 +60,19 @@ fun MaterialAutoCompleteTextView.setupPlaceAutocomplete(
                 delay(300) // Attend 300ms après la dernière frappe avant d'appeler l'API
                 try {
                     currentPlaces = apiService.searchPlacesByName(query)
+
                     adapter.clear()
-                    adapter.addAll(currentPlaces.map { it.name })
-                    adapter.notifyDataSetChanged()
+                    if (currentPlaces.isNotEmpty()) {
+                        adapter.addAll(currentPlaces.map { it.name })
+                        adapter.notifyDataSetChanged()
+
+                        // 👇 2. FORCER L'AFFICHAGE (Si le champ a toujours le focus)
+                        if (hasFocus()) {
+                            showDropDown()
+                        }
+                    } else {
+                        adapter.notifyDataSetChanged()
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -57,7 +85,7 @@ fun MaterialAutoCompleteTextView.setupPlaceAutocomplete(
         val selectedPlace = currentPlaces.getOrNull(position)
         selectedPlace?.let {
             onPlaceSelected(it)
-            // Facultatif: On cache le clavier après sélection
+            // On cache le clavier après sélection
             val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.hideSoftInputFromWindow(this.windowToken, 0)
         }

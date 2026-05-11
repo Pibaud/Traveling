@@ -39,6 +39,8 @@ import com.example.application.model.RetrofitInstance
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
     private var _binding: FragmentSearchBinding? = null
+
+    private lateinit var staggeredAdapter: StaggeredPostAdapter
     private val binding get() = _binding!!
 
     // Injection du ViewModel
@@ -67,6 +69,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             }
         }
 
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.placePosts.collect { posts ->
+                staggeredAdapter.submitList(posts)
+            }
+        }
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }
@@ -84,23 +91,29 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             apiService = RetrofitInstance.api
         ) { selectedPlace ->
 
-            if (binding.rvSearchGrid.visibility == View.VISIBLE) {
-                switchToMapView()
-            }
-
-            val bottomSheet = PlaceDetailsBottomSheet(selectedPlace)
-            bottomSheet.show(childFragmentManager, "PlaceDetailsBottomSheet")
-
-            binding.mapView.getMapAsync { map ->
-                val position = CameraPosition.Builder()
-                    .target(LatLng(selectedPlace.latitude, selectedPlace.longitude))
-                    .zoom(15.0)
-                    .build()
-                map.animateCamera(CameraUpdateFactory.newCameraPosition(position), 1500)
-            }
-
+            // On remplit la barre de recherche
             binding.etSearchPlace.setText(selectedPlace.name, false)
             binding.etSearchPlace.clearFocus()
+
+            if (binding.rvSearchGrid.visibility == View.VISIBLE) {
+                // --- COMPORTEMENT VUE GRILLE ---
+                // On demande au ViewModel de charger les posts de ce lieu.
+                // Grâce au StateFlow, l'Adapter se mettra à jour tout seul à la réception !
+                viewModel.fetchPostsForPlace(selectedPlace.id)
+
+            } else {
+                // --- COMPORTEMENT VUE MAP (Ce que tu faisais déjà) ---
+                val bottomSheet = PlaceDetailsBottomSheet(selectedPlace)
+                bottomSheet.show(childFragmentManager, "PlaceDetailsBottomSheet")
+
+                binding.mapView.getMapAsync { map ->
+                    val position = CameraPosition.Builder()
+                        .target(LatLng(selectedPlace.latitude, selectedPlace.longitude))
+                        .zoom(15.0)
+                        .build()
+                    map.animateCamera(CameraUpdateFactory.newCameraPosition(position), 1500)
+                }
+            }
         }
     }
 
@@ -146,7 +159,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     }
 
     private fun setupRecyclerView() {
-        binding.rvSearchGrid.layoutManager = GridLayoutManager(requireContext(), 2)
+        staggeredAdapter = StaggeredPostAdapter()
+
+        // C'est ici que la magie Pinterest opère ! (2 colonnes, défilement vertical)
+        binding.rvSearchGrid.layoutManager = androidx.recyclerview.widget.StaggeredGridLayoutManager(2, androidx.recyclerview.widget.StaggeredGridLayoutManager.VERTICAL)
+        binding.rvSearchGrid.adapter = staggeredAdapter
     }
 
     private fun setupMap() {
