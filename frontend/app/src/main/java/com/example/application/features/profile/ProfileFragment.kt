@@ -12,6 +12,7 @@ import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.example.application.R
 import com.example.application.databinding.FragmentProfileBinding
+import com.example.application.model.RetrofitInstance
 import com.example.application.model.UpdateProfileRequest
 import com.example.application.model.UserProfileResponse
 import com.google.firebase.auth.ktx.auth

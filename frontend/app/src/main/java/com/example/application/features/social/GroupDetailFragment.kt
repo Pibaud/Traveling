@@ -9,6 +9,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.application.R
 import com.example.application.databinding.FragmentGroupDetailBinding
+import com.example.application.model.RetrofitInstance
 import kotlinx.coroutines.launch
 
 class GroupDetailFragment : Fragment(R.layout.fragment_group_detail) {

@@ -21,6 +21,7 @@ import com.google.android.material.chip.Chip
 import java.util.Collections
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.net.Uri
+import com.example.application.model.RetrofitInstance
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage

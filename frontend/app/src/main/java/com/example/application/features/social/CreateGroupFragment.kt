@@ -18,6 +18,7 @@ import coil.load
 import com.example.application.R
 import com.example.application.databinding.FragmentCreateGroupBinding
 import com.example.application.model.CreateGroupRequest
+import com.example.application.model.RetrofitInstance
 import com.example.application.utils.GroupThemes
 import com.google.android.material.chip.Chip
 import com.google.firebase.auth.ktx.auth

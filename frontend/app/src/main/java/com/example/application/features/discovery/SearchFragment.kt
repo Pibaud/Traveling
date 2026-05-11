@@ -33,6 +33,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import androidx.cardview.widget.CardView
 import androidx.core.content.res.ResourcesCompat
 import android.graphics.drawable.BitmapDrawable
+import com.example.application.model.RetrofitInstance
 import com.mapbox.mapboxsdk.style.expressions.Expression.color
 import com.mapbox.mapboxsdk.style.expressions.Expression.match
 import com.mapbox.mapboxsdk.style.expressions.Expression.stop

@@ -11,6 +11,7 @@ import com.example.application.databinding.FragmentPathBinding
 import com.example.application.model.ItineraryResponse
 import com.example.application.data.local.AppDatabase
 import com.example.application.data.local.CachedItinerary
+import com.example.application.model.RetrofitInstance
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.gson.Gson

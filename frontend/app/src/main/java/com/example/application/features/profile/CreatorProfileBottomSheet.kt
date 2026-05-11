@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide
 import com.example.application.R
 import com.example.application.features.path.ItineraryAdapter
 import com.example.application.features.path.ItineraryDetailsBottomSheet
+import com.example.application.model.RetrofitInstance
 import com.example.application.model.UserProfileResponse
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton

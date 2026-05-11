@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.application.R
 import com.example.application.databinding.FragmentAuthBinding
+import com.example.application.model.RetrofitInstance
 import com.example.application.model.UserSyncRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase

@@ -16,6 +16,7 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.example.application.R
 import com.example.application.model.Place
 import com.example.application.features.discovery.PlacePostsAdapter
+import com.example.application.model.RetrofitInstance
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
 

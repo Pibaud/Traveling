@@ -1,3 +1,4 @@
+import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     kotlin("plugin.serialization")
@@ -5,6 +6,13 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.devtools.ksp")
 }
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+// Si on oublie de le mettre dans local.properties, ça prendra 10.0.2.2 par défaut
+val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "\"http://10.0.2.2:8081/\""
 
 android {
     namespace = "com.example.application"
@@ -23,6 +31,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "API_BASE_URL", apiBaseUrl)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val maptilerKey = project.findProperty("MAPTILER_API_KEY")?.toString() ?: ""

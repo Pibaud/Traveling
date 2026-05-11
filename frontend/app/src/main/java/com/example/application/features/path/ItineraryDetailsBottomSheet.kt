@@ -42,6 +42,7 @@ import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import kotlinx.coroutines.launch
 import com.example.application.R
 import com.example.application.features.profile.CreatorProfileBottomSheet
+import com.example.application.model.RetrofitInstance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream

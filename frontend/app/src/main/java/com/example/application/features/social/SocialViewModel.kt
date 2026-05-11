@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.application.model.Group
 import com.example.application.model.JoinGroupRequest
 import com.example.application.model.NotificationToggleRequest
+import com.example.application.model.RetrofitInstance
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch

@@ -9,6 +9,7 @@ import androidx.navigation.fragment.findNavController
 import com.example.application.R
 import com.example.application.databinding.FragmentCreatePathBinding
 import com.example.application.model.GeneratePathRequest
+import com.example.application.model.RetrofitInstance
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.launch
 
