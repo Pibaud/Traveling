@@ -75,6 +75,16 @@ interface TravelingApiService {
     @POST("share/groups/join")
     suspend fun joinGroup(@Body request: JoinGroupRequest): Response<Map<String, String>>
 
+    @GET("share/groups/{groupId}/posts")
+    suspend fun getGroupPosts(
+        @Path("groupId") groupId: String
+    ): List<Post>
+
+    @GET("share/groups/{groupId}/members")
+    suspend fun getGroupMembers(
+        @Path("groupId") groupId: String
+    ): List<GroupMemberResponse>
+
     @GET("path/list")
     suspend fun getPathList(
         @Query("userId") userId: String,

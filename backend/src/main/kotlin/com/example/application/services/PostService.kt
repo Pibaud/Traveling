@@ -273,4 +273,75 @@ object PostService {
         }
         results
     }
+
+    suspend fun getPostsForGroup(groupIdStr: String, currentUserId: String? = null): List<Post> = dbQuery {
+        val baseSql = """
+        SELECT 
+            p.id as post_id, 
+            p.author_id, 
+            p.description, 
+            p.image_urls, 
+            (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
+            EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked_by_me,
+            CAST(EXTRACT(EPOCH FROM p.created_at) * 1000 AS BIGINT) as timestamp,
+            u.username as author_name,
+            u.avatar_url as author_avatar,
+            pl.id as place_id, 
+            pl.name as place_name, 
+            pl.category as place_category, 
+            ST_Y(pl.location::geometry) as place_lat, 
+            ST_X(pl.location::geometry) as place_lng,
+            (
+                SELECT STRING_AGG(t.name, ',') 
+                FROM post_tags pt 
+                JOIN tags t ON pt.tag_id = t.id 
+                WHERE pt.post_id = p.id
+            ) as tags_list
+        FROM posts p
+        JOIN group_posts gp ON p.id = gp.post_id
+        LEFT JOIN users u ON p.author_id = u.firebase_id
+        LEFT JOIN places pl ON p.place_id = pl.id
+        WHERE gp.group_id = ?
+        ORDER BY p.created_at DESC
+    """.trimIndent()
+
+        val args = listOf(
+            org.jetbrains.exposed.sql.VarCharColumnType() to (currentUserId ?: ""),
+            org.jetbrains.exposed.sql.UUIDColumnType() to java.util.UUID.fromString(groupIdStr)
+        )
+
+        val results = mutableListOf<Post>()
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(baseSql, args = args) { rs ->
+            while (rs.next()) {
+                val imageUrlsStr = rs.getString("image_urls") ?: ""
+                val tagsStr = rs.getString("tags_list") ?: ""
+
+                val place = Place(
+                    id = rs.getString("place_id") ?: "",
+                    name = rs.getString("place_name") ?: "Lieu inconnu",
+                    latitude = rs.getDouble("place_lat"),
+                    longitude = rs.getDouble("place_lng"),
+                    category = try { PlaceCategory.valueOf(rs.getString("place_category")?.uppercase() ?: "CULTURE") } catch (e: Exception) { PlaceCategory.CULTURE }
+                )
+
+                results.add(
+                    Post(
+                        id = rs.getString("post_id"),
+                        authorId = rs.getString("author_id") ?: "",
+                        authorName = rs.getString("author_name") ?: "Utilisateur inconnu",
+                        authorAvatarUrl = rs.getString("author_avatar") ?: "",
+                        description = rs.getString("description") ?: "",
+                        imageUrls = if (imageUrlsStr.isNotBlank()) imageUrlsStr.split(",") else emptyList(),
+                        likesCount = rs.getInt("likes_count"),
+                        commentsCount = 0,
+                        tags = if (tagsStr.isNotBlank()) tagsStr.split(",") else emptyList(),
+                        timestamp = rs.getLong("timestamp"),
+                        place = place,
+                        isLikedByMe = rs.getBoolean("is_liked_by_me")
+                    )
+                )
+            }
+        }
+        results
+    }
 }

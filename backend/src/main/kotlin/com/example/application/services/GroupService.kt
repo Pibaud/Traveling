@@ -1,8 +1,10 @@
 package com.example.application.services
 
+import GroupMemberResponse
 import com.example.application.DatabaseFactory.dbQuery
 import com.example.application.GroupMembers
 import com.example.application.Groups
+import com.example.application.Users
 import com.example.application.models.Group
 import org.jetbrains.exposed.sql.*
 
@@ -115,5 +117,22 @@ object GroupService {
         }
 
         newStatus // On renvoie "ACCEPTED" ou "PENDING" au front
+    }
+
+    suspend fun getGroupMembers(groupIdStr: String): List<GroupMemberResponse> = dbQuery {
+        val groupUuid = java.util.UUID.fromString(groupIdStr)
+
+        val query = (GroupMembers innerJoin Users)
+            .select { GroupMembers.groupId eq groupUuid }
+            .orderBy(GroupMembers.joinedAt to SortOrder.ASC)
+
+        query.map { row ->
+            GroupMemberResponse(
+                userId = row[Users.firebaseId],
+                username = row[Users.username] ?: "Utilisateur",
+                avatarUrl = row[Users.avatarUrl],
+                role = row[GroupMembers.role]
+            )
+        }
     }
 }

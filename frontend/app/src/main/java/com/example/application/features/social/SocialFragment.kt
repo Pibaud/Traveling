@@ -60,6 +60,14 @@ class SocialFragment : Fragment() {
         }
 
         popularAdapter = GroupAdapter(
+            onGroupClick = { group ->
+                val bundle = Bundle().apply {
+                    putString("groupId", group.id)
+                    putString("groupName", group.name)
+                    putString("groupPhoto", group.photoUrl)
+                }
+                findNavController().navigate(R.id.action_social_to_groupDetail, bundle)
+            },
             onJoinClick = onJoinAttempt,
             onNotificationClick = { group, enabled -> viewModel.onNotificationToggleClicked(group, enabled) }
         )
@@ -68,6 +76,14 @@ class SocialFragment : Fragment() {
 
         // 2. Adaptateur pour Mes Groupes (Vertical)
         myGroupsAdapter = GroupAdapter(
+            onGroupClick = { group ->
+                val bundle = Bundle().apply {
+                    putString("groupId", group.id)
+                    putString("groupName", group.name)
+                    putString("groupPhoto", group.photoUrl)
+                }
+                findNavController().navigate(R.id.action_social_to_groupDetail, bundle)
+            },
             onJoinClick = { group -> viewModel.onJoinGroupClicked(group) },
             onNotificationClick = { group, enabled -> viewModel.onNotificationToggleClicked(group, enabled) }
         )

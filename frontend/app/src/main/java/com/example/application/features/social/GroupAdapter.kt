@@ -13,6 +13,7 @@ import com.example.application.utils.GroupThemes
 import com.google.android.material.chip.Chip
 
 class GroupAdapter(
+    private val onGroupClick: (Group) -> Unit,
     private val onJoinClick: (Group) -> Unit,
     private val onNotificationClick: (Group, Boolean) -> Unit
 ) : RecyclerView.Adapter<GroupAdapter.GroupViewHolder>() {
@@ -99,6 +100,10 @@ class GroupAdapter(
 
                 // On prévient le ViewModel d'envoyer la requête au serveur
                 onNotificationClick(group, newState)
+            }
+
+            binding.root.setOnClickListener {
+                onGroupClick(group)
             }
         }
     }

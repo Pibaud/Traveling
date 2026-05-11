@@ -45,16 +45,6 @@
         tools:layout="@layout/fragment_create_post" />
 
     <fragment
-        android:id="@+id/socialFragment"
-        android:name="com.example.application.features.social.SocialFragment"
-        android:label="Social"
-        tools:layout="@layout/fragment_social">
-        <action
-            android:id="@+id/action_social_to_createGroup"
-            app:destination="@id/createGroupFragment" />
-    </fragment>
-
-    <fragment
         android:id="@+id/createGroupFragment"
         android:name="com.example.application.features.social.CreateGroupFragment"
         android:label="Nouveau Groupe"
@@ -97,5 +87,37 @@
         android:name="com.example.application.features.path.PathResultsFragment"
         android:label="Choix du parcours"
         tools:layout="@layout/fragment_path_results" />
+
+    <fragment
+        android:id="@+id/socialFragment"
+        android:name="com.example.application.features.social.SocialFragment"
+        android:label="Social"
+        tools:layout="@layout/fragment_social">
+        <action
+            android:id="@+id/action_social_to_createGroup"
+            app:destination="@id/createGroupFragment" />
+
+        <action
+            android:id="@+id/action_social_to_groupDetail"
+            app:destination="@id/groupDetailFragment"
+            app:enterAnim="@android:anim/slide_in_left"
+            app:exitAnim="@android:anim/slide_out_right"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/groupDetailFragment"
+        android:name="com.example.application.features.social.GroupDetailFragment"
+        android:label="Détails du groupe"
+        tools:layout="@layout/fragment_group_detail">
+
+        <argument
+            android:name="groupId"
+            app:argType="string" />
+        <argument
+            android:name="groupName"
+            app:argType="string" />
+    </fragment>
 
 </navigation>
