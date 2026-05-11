@@ -41,6 +41,7 @@ import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.geometry.LatLngBounds
 import kotlinx.coroutines.launch
 import com.example.application.R
+import com.example.application.features.places.PlaceDetailsBottomSheet
 import com.example.application.features.profile.CreatorProfileBottomSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -222,11 +223,8 @@ class ItineraryDetailsBottomSheet(
         }
 
         val adapter = ItineraryStepAdapter(itinerary.steps) { clickedPlace ->
-            Toast.makeText(
-                requireContext(),
-                "Ouverture des détails de ${clickedPlace.name}...",
-                Toast.LENGTH_SHORT
-            ).show()
+            val placeDetailsSheet = PlaceDetailsBottomSheet(clickedPlace)
+            placeDetailsSheet.show(parentFragmentManager, "PlaceDetailsSheet")
         }
 
         binding.vpSteps.adapter = adapter

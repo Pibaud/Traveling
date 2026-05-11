@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="16dp"
+    android:background="@drawable/bottom_sheet_background"> <View
+    android:layout_width="40dp"
+    android:layout_height="4dp"
+    android:layout_gravity="center"
+    android:background="#DDDDDD"
+    android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/tvSheetName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        tools:text="Nom du lieu"/>
+
+    <TextView
+        android:id="@+id/tvSheetCategory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/primary_color"
+        android:layout_marginTop="4dp"
+        tools:text="Catégorie"/>
+
+    <Button
+        android:id="@+id/btnSheetDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Voir les détails"
+        app:cornerRadius="12dp"
+        android:backgroundTint="@color/primary_color"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Photos de la communauté"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvPlacePosts"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="150dp"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp" />
+
+</LinearLayout>
