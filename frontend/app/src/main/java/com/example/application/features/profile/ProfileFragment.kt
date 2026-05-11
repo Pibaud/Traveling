@@ -12,7 +12,7 @@ import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.example.application.R
 import com.example.application.databinding.FragmentProfileBinding
-// 👇 L'IMPORT QUI MANQUAIT EST ICI 👇
+import com.example.application.model.UpdateProfileRequest
 import com.example.application.model.UserProfileResponse
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -42,15 +42,25 @@ class ProfileFragment : Fragment() {
                 findNavController().navigate(R.id.action_profile_to_auth)
             }
 
-            // --- LECTURE DU CACHE (Centres d'intérêt) ---
-            val prefs = requireContext().getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-            binding.chipPrefCulture.isChecked = prefs.getBoolean("pref_culture", false)
-            binding.chipPrefDecouverte.isChecked = prefs.getBoolean("pref_decouverte", false)
-            binding.chipPrefLoisirs.isChecked = prefs.getBoolean("pref_loisirs", false)
+            // Dans onViewCreated(), lors du clic sur les chips :
+            val updatePrefs = {
+                val selected = mutableListOf<String>()
+                if (binding.chipPrefCulture.isChecked) selected.add("CULTURE")
+                if (binding.chipPrefDecouverte.isChecked) selected.add("DECOUVERTE")
+                if (binding.chipPrefLoisirs.isChecked) selected.add("LOISIRS")
+                val prefsString = selected.joinToString(",")
 
-            binding.chipPrefCulture.setOnCheckedChangeListener { _, isChecked -> prefs.edit().putBoolean("pref_culture", isChecked).apply() }
-            binding.chipPrefDecouverte.setOnCheckedChangeListener { _, isChecked -> prefs.edit().putBoolean("pref_decouverte", isChecked).apply() }
-            binding.chipPrefLoisirs.setOnCheckedChangeListener { _, isChecked -> prefs.edit().putBoolean("pref_loisirs", isChecked).apply() }
+                lifecycleScope.launch {
+                    RetrofitInstance.api.updateProfile(
+                        currentUser.uid,
+                        UpdateProfileRequest(preferences = prefsString)
+                    )
+                }
+            }
+
+            binding.chipPrefCulture.setOnCheckedChangeListener { _, _ -> updatePrefs() }
+            binding.chipPrefDecouverte.setOnCheckedChangeListener { _, _ -> updatePrefs() }
+            binding.chipPrefLoisirs.setOnCheckedChangeListener { _, _ -> updatePrefs() }
 
             // --- APPEL API POUR LES INFOS UTILISATEUR & STATS ---
             loadUserProfile(currentUser.uid)
@@ -68,7 +78,6 @@ class ProfileFragment : Fragment() {
     private fun showEditProfileDialog(uid: String, currentBio: String) {
         val context = requireContext()
 
-        // On crée un layout vertical pour mettre nos deux champs
         val layout = android.widget.LinearLayout(context).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(50, 40, 50, 40)
@@ -105,7 +114,6 @@ class ProfileFragment : Fragment() {
     private fun updateProfileInBackend(uid: String, bio: String, avatarUrl: String) {
         lifecycleScope.launch {
             try {
-                // On prépare la donnée. Si le champ URL est vide, on envoie null pour ne pas effacer l'ancienne.
                 val request = com.example.application.model.UpdateProfileRequest(
                     bio = bio.ifBlank { null },
                     avatarUrl = avatarUrl.ifBlank { null }
@@ -115,7 +123,6 @@ class ProfileFragment : Fragment() {
 
                 if (response.isSuccessful) {
                     Toast.makeText(requireContext(), "Profil mis à jour !", Toast.LENGTH_SHORT).show()
-                    // On recharge le profil pour afficher les nouvelles infos immédiatement
                     loadUserProfile(uid)
                 } else {
                     Toast.makeText(requireContext(), "Erreur lors de la mise à jour", Toast.LENGTH_SHORT).show()
@@ -129,11 +136,10 @@ class ProfileFragment : Fragment() {
     private fun loadUserProfile(uid: String) {
         lifecycleScope.launch {
             try {
-                val response = RetrofitInstance.api.getUserProfile(uid)
+                val response = RetrofitInstance.api.getUserProfile(uid, uid)
 
                 if (response.isSuccessful && response.body() != null) {
 
-                    // 👇 L'APPEL EXPLICITE EST LÀ 👇
                     val profile: UserProfileResponse = response.body()!!
 
                     // 1. Textes du profil
@@ -152,7 +158,9 @@ class ProfileFragment : Fragment() {
                     binding.tvStatCreated.text = profile.createdCount.toString()
                     binding.tvStatLiked.text = profile.likedCount.toString()
                     binding.tvStatReceivedLikes.text = profile.totalLikesReceived.toString()
-                    binding.tvStatHours.text = profile.totalHours.toString()
+
+                    // 👇 MODIFICATION ICI 👇
+                    binding.tvStatFollowers.text = profile.followerCount.toString()
 
                 } else {
                     Toast.makeText(requireContext(), "Impossible de charger le profil : ${response.code()}", Toast.LENGTH_SHORT).show()

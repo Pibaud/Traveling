@@ -10,5 +10,7 @@ data class UserProfileResponse(
     val createdCount: Int,
     val likedCount: Int,
     val totalLikesReceived: Int,
-    val totalHours: Int // La fameuse 4ème case !
+    val followerCount: Int, // 👈 Remplace totalHours
+    val isFollowing: Boolean, // 👈 Pour savoir si on est déjà abonné
+    val preferredCategories: String? // 👈 Ex: "CULTURE,LOISIRS"
 )

@@ -56,6 +56,11 @@ class PathFragment : Fragment(R.layout.fragment_path) {
             val wantsCulture = prefs.getBoolean("pref_culture", false)
             val wantsDecouverte = prefs.getBoolean("pref_decouverte", false)
             val wantsLoisirs = prefs.getBoolean("pref_loisirs", false)
+            val followingPaths = fetchOrLoadCache(userId, "FOLLOWING")
+
+            if (followingPaths.isNotEmpty()) {
+                categoriesList.add(0, CategoryRow("Vos abonnements", followingPaths)) // On le met en haut !
+            }
 
             if (wantsCulture) {
                 // On cherche les itinéraires qui contiennent AU MOINS UNE étape "CULTURE"

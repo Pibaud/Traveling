@@ -84,11 +84,9 @@ object Users : Table("users") {
     val username = varchar("username", 100).nullable()
     val bio = text("bio").nullable()
     val avatarUrl = text("avatar_url").nullable()
-    // CORRECTION : On utilise datetime au lieu de long
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
-
-    // CORRECTION : La clé primaire ne doit être que l'ID
     override val primaryKey = PrimaryKey(firebaseId)
+    val preferences = text("preferences").nullable()
 }
 
 object Groups : Table("groups") {
@@ -164,4 +162,10 @@ object Places : Table("places") { // Bien mettre "places" avec un 's'
     val duration = integer("duration")
 
     override val primaryKey = PrimaryKey(id)
+}
+
+object UserFollows : Table("user_follows") {
+    val followerId = varchar("follower_id", 255)
+    val followedId = varchar("followed_id", 255)
+    override val primaryKey = PrimaryKey(followerId, followedId)
 }

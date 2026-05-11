@@ -108,7 +108,10 @@ interface TravelingApiService {
     ): Response<okhttp3.ResponseBody>
 
     @GET("/users/{uid}/profile")
-    suspend fun getUserProfile(@Path("uid") uid: String): Response<UserProfileResponse>
+    suspend fun getUserProfile(@Path("uid") uid: String, @Query("currentUserId") currentUserId: String): Response<UserProfileResponse>
+
+    @POST("/users/{uid}/follow/{targetUid}")
+    suspend fun toggleFollow(@Path("uid") uid: String, @Path("targetUid") targetUid: String): Response<Map<String, Boolean>>
 
     @PUT("/users/{uid}/profile")
     suspend fun updateProfile(

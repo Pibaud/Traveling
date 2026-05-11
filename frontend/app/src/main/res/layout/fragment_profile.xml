@@ -167,8 +167,8 @@
                         android:orientation="vertical"
                         android:gravity="center"
                         android:padding="16dp">
-                        <TextView android:id="@+id/tvStatHours" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="24sp" tools:text="84"/>
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Heures générées" android:textSize="12sp" android:textAlignment="center"/>
+                        <TextView android:id="@+id/tvStatFollowers" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="24sp" tools:text="84"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Abonnés" android:textSize="12sp" android:textAlignment="center"/>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>

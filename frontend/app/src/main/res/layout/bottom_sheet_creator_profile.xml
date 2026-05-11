@@ -33,38 +33,62 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/ivCreatorAvatar"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
                 android:scaleType="centerCrop"
                 app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
                 app:cornerFamily="rounded"
-                app:cornerSize="40dp"
+                app:cornerSize="35dp"
                 android:background="#E0E0E0" />
 
-            <TextView
-                android:id="@+id/tvCreatorUsername"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/black"
-                tools:text="\@Gérome" />
+                android:orientation="vertical"
+                android:layout_marginStart="16dp">
 
-            <TextView
-                android:id="@+id/tvCreatorBio"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textSize="14sp"
-                android:textColor="#666666"
-                android:textAlignment="center"
-                tools:text="Fan de montagne et de fromage 🧀" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvCreatorUsername"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/black"
+                        tools:text="\@Gérome" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFollowCreator"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="S'abonner"
+                        android:textSize="12sp"
+                        app:cornerRadius="18dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvCreatorBio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="14sp"
+                    android:textColor="#666666"
+                    tools:text="Fan de montagne et de fromage 🧀" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
@@ -135,10 +159,29 @@
                     app:cardCornerRadius="8dp">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:padding="12dp">
                         <TextView android:id="@+id/tvCreatorStatHours" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="20sp"/>
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Heures générées" android:textSize="12sp" android:textAlignment="center"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Abonnés" android:textSize="12sp" android:textAlignment="center"/>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ses itinéraires"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvCreatorItineraries"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            android:clipToPadding="false"
+            android:paddingBottom="24dp"/>
+
     </LinearLayout>
 </LinearLayout>
