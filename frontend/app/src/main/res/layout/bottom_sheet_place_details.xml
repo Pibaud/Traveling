@@ -10,35 +10,37 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/bottom_sheet_background"> <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="220dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="0dp"
-        app:cardPreventCornerOverlap="false"
-        android:layout_marginHorizontal="8dp"
-        android:layout_marginTop="8dp">
+        android:background="@drawable/bottom_sheet_background">
 
-        <ImageView
-            android:id="@+id/ivSheetPlaceImage"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:background="#E0E0E0"
-            tools:src="@drawable/bg_explore" /> <View
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_horizontal|top"
-        android:layout_marginTop="12dp"
-        android:background="#66FFFFFF" />
-    </com.google.android.material.card.MaterialCardView>
+            android:layout_height="220dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="8dp">
+
+            <ImageView
+                android:id="@+id/ivSheetPlaceImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:background="#E0E0E0" />
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:layout_gravity="center_horizontal|top"
+                android:layout_marginTop="12dp"
+                android:background="#66FFFFFF" />
+        </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="24dp"
-            android:paddingVertical="16dp">
+            android:paddingTop="16dp">
 
             <TextView
                 android:id="@+id/tvSheetName"
@@ -47,7 +49,7 @@
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textStyle="bold"
                 android:textColor="@android:color/black"
-                tools:text="Parc des Buttes-Chaumont"/>
+                tools:text="Nom du lieu"/>
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -61,27 +63,110 @@
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:layout_marginEnd="6dp"
-                    android:src="@drawable/ic_culture"
-                    app:tint="@color/primary_color" /> <TextView
-                android:id="@+id/tvSheetCategory"
-                android:layout_width="wrap_content"
+                    android:src="@drawable/round_decouverte_24"
+                    app:tint="@color/primary_color" />
+
+                <TextView
+                    android:id="@+id/tvSheetCategory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBodyMedium"
+                    android:textColor="#666666"
+                    tools:text="Catégorie"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="20dp"
+            android:weightSum="3">
+
+            <LinearLayout
+                android:id="@+id/btnViewItineraries"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="#666666"
-                tools:text="Parc Naturel"/>
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_heart_empty"
+                    app:tint="@color/primary_color"
+                    android:background="#F0F7F0"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
+                    app:cornerSize="24dp"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Itinéraires"
+                    android:textSize="11sp"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/black"/>
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSheetDetails"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:id="@+id/btnAddPost"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Voir les détails complets"
-                app:icon="@drawable/ic_arrow_forward"
-                app:iconGravity="textEnd"
-                app:cornerRadius="16dp"
-                android:backgroundTint="@color/primary_color"/>
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_download"
+                    app:tint="#884154"
+                    android:background="#F7F0F2"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
+                    app:cornerSize="24dp"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Poster"
+                    android:textSize="11sp"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/black"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnGenerateWith"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_regenerate"
+                    app:tint="#E59866"
+                    android:background="#F7F4F0"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
+                    app:cornerSize="24dp"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Générer"
+                    android:textSize="11sp"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/black"/>
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
@@ -97,15 +182,14 @@
                 android:text="Galerie Communautaire"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="@android:color/black"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="24dp"
                 android:layout_marginBottom="12dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvPlacePosts"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="180dp"
-                tools:listitem="@layout/item_post_thumbnail" />
+                android:minHeight="180dp" />
         </LinearLayout>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
