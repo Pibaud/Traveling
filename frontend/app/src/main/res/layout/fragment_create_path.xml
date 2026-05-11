@@ -21,6 +21,34 @@
             android:textColor="@color/black"
             android:layout_marginBottom="24dp"/>
 
+        <LinearLayout
+            android:id="@+id/llForcedPlaceIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:padding="0dp"
+            android:layout_marginBottom="8dp"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lieu inclus dans l'itinéraire :"
+                android:textColor="#7A1C2A"
+                android:textStyle="bold" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/tvForcedPlaceName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipIconTint="#7A1C2A"
+                android:textColor="@android:color/black"
+                tools:text="Jardin des Plantes"
+                app:chipBackgroundColor="#F5E6E8"
+                app:closeIconVisible="true" />
+        </LinearLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -80,8 +80,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="20dp"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="24dp"
             android:weightSum="3">
 
             <LinearLayout
@@ -91,24 +91,32 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:focusable="true">
-                <com.google.android.material.imageview.ShapeableImageView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_heart_empty"
-                    app:tint="@color/primary_color"
-                    android:background="#F0F7F0"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
-                    app:cornerSize="24dp"/>
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    app:cardBackgroundColor="@color/primary_color"
+                    app:cardCornerRadius="32dp"
+                    app:cardElevation="4dp"
+                    app:strokeWidth="0dp">
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="16dp"
+                        android:src="@drawable/round_goto_48"
+                        app:tint="@android:color/white" />
+                </com.google.android.material.card.MaterialCardView>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Itinéraires"
-                    android:textSize="11sp"
-                    android:layout_marginTop="4dp"
+                    android:text="S'y rendre"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"
                     android:textColor="@color/black"/>
             </LinearLayout>
 
@@ -119,24 +127,32 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:focusable="true">
-                <com.google.android.material.imageview.ShapeableImageView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_download"
-                    app:tint="#884154"
-                    android:background="#F7F0F2"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
-                    app:cornerSize="24dp"/>
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    app:cardBackgroundColor="@color/primary_color"
+                    app:cardCornerRadius="32dp"
+                    app:cardElevation="4dp"
+                    app:strokeWidth="0dp">
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="16dp"
+                        android:src="@drawable/round_add_photo_alternate_24"
+                        app:tint="@android:color/white" />
+                </com.google.android.material.card.MaterialCardView>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Poster"
-                    android:textSize="11sp"
-                    android:layout_marginTop="4dp"
+                    android:text="Poster sur ce lieu"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"
                     android:textColor="@color/black"/>
             </LinearLayout>
 
@@ -147,24 +163,32 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:focusable="true">
-                <com.google.android.material.imageview.ShapeableImageView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_regenerate"
-                    app:tint="#E59866"
-                    android:background="#F7F4F0"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
-                    app:cornerSize="24dp"/>
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    app:cardBackgroundColor="@color/primary_color"
+                    app:cardCornerRadius="32dp"
+                    app:cardElevation="4dp"
+                    app:strokeWidth="0dp">
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="16dp"
+                        android:src="@drawable/filled_itinerary_48"
+                        app:tint="@android:color/white" />
+                </com.google.android.material.card.MaterialCardView>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Générer"
-                    android:textSize="11sp"
-                    android:layout_marginTop="4dp"
+                    android:text="Ajouter à un itinéraire"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"
                     android:textColor="@color/black"/>
             </LinearLayout>
         </LinearLayout>
@@ -179,7 +203,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Galerie Communautaire"
+                android:text="Posts de la communauté"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="@android:color/black"
                 android:layout_marginTop="24dp"

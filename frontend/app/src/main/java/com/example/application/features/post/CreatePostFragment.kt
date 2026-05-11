@@ -21,6 +21,7 @@ import com.google.android.material.chip.Chip
 import java.util.Collections
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.net.Uri
+import com.example.application.model.PlaceCategory
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
@@ -108,6 +109,35 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
             selectedPlace = place
             Toast.makeText(requireContext(), "Lieu lié : ${place.name}", Toast.LENGTH_SHORT).show()
             validatePublishState()
+        }
+
+        // --- NOUVEAU : Récupération du lieu pré-rempli ---
+        arguments?.let { args ->
+            val placeId = args.getString("placeId")
+            val placeName = args.getString("placeName")
+
+            if (placeId != null && placeName != null) {
+                val lat = args.getDouble("placeLat")
+                val lng = args.getDouble("placeLng")
+                val categoryStr = args.getString("placeCategory") ?: "ERREUR CATEGORIE"
+                val category = try { PlaceCategory.valueOf(categoryStr) } catch(e: Exception) { PlaceCategory.CULTURE }
+
+                // On remplit notre variable globale
+                selectedPlace = Place(
+                    id = placeId,
+                    name = placeName,
+                    latitude = lat,
+                    longitude = lng,
+                    category = category
+                )
+
+                // On met à jour l'interface visuelle (l'EditText)
+                binding.etLocation.setText(placeName)
+                binding.etLocation.clearFocus()
+
+                // Petite astuce UX : afficher un Toast pour confirmer le pré-remplissage
+                Toast.makeText(requireContext(), "Lieu pré-sélectionné : $placeName", Toast.LENGTH_SHORT).show()
+            }
         }
 
         validatePublishState()
