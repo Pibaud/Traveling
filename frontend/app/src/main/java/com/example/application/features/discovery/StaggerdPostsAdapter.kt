@@ -9,7 +9,7 @@ import coil.load
 import com.example.application.R
 import com.example.application.model.Post
 
-class StaggeredPostAdapter : RecyclerView.Adapter<StaggeredPostAdapter.PostViewHolder>() {
+class StaggeredPostAdapter(private val onPostClick: (Post) -> Unit) : RecyclerView.Adapter<StaggeredPostAdapter.PostViewHolder>() {
 
     private var posts = listOf<Post>()
 
@@ -32,6 +32,10 @@ class StaggeredPostAdapter : RecyclerView.Adapter<StaggeredPostAdapter.PostViewH
             imageView.load(url) {
                 crossfade(true)
             }
+        }
+
+        holder.itemView.setOnClickListener {
+            onPostClick(post)
         }
     }
 

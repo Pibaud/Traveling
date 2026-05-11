@@ -39,7 +39,7 @@ import com.example.application.model.RetrofitInstance
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
     private var _binding: FragmentSearchBinding? = null
-
+    private var currentSelectedPlace: Place? = null
     private lateinit var staggeredAdapter: StaggeredPostAdapter
     private val binding get() = _binding!!
 
@@ -90,7 +90,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             coroutineScope = viewLifecycleOwner.lifecycleScope,
             apiService = RetrofitInstance.api
         ) { selectedPlace ->
-
+            currentSelectedPlace = selectedPlace
             // On remplit la barre de recherche
             binding.etSearchPlace.setText(selectedPlace.name, false)
             binding.etSearchPlace.clearFocus()
@@ -145,6 +145,9 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         binding.btnToggleMap.setBackgroundColor(Color.WHITE)
         binding.btnToggleMap.setColorFilter(ContextCompat.getColor(requireContext(), R.color.primary_color))
+        currentSelectedPlace?.let { place ->
+            viewModel.fetchPostsForPlace(place.id)
+        }
     }
 
     private fun switchToMapView() {
@@ -156,10 +159,28 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         binding.btnToggleGrid.setBackgroundColor(Color.WHITE)
         binding.btnToggleGrid.setColorFilter(ContextCompat.getColor(requireContext(), R.color.primary_color))
+        currentSelectedPlace?.let { place ->
+            // On évite d'ouvrir le bottom sheet en double s'il est déjà là
+            if (childFragmentManager.findFragmentByTag("PlaceDetailsBottomSheet") == null) {
+                val bottomSheet = PlaceDetailsBottomSheet(place)
+                bottomSheet.show(childFragmentManager, "PlaceDetailsBottomSheet")
+            }
+
+            binding.mapView.getMapAsync { map ->
+                val position = CameraPosition.Builder()
+                    .target(LatLng(place.latitude, place.longitude))
+                    .zoom(15.0)
+                    .build()
+                map.animateCamera(CameraUpdateFactory.newCameraPosition(position), 1000)
+            }
+        }
     }
 
     private fun setupRecyclerView() {
-        staggeredAdapter = StaggeredPostAdapter()
+        staggeredAdapter = StaggeredPostAdapter { clickedPost ->
+            val bundle = Bundle().apply { putString("scrollToPostId", clickedPost.id) }
+            findNavController().navigate(R.id.feedFragment, bundle) // Assure-toi que l'ID correspond à ton nav_graph
+        }
 
         // C'est ici que la magie Pinterest opère ! (2 colonnes, défilement vertical)
         binding.rvSearchGrid.layoutManager = androidx.recyclerview.widget.StaggeredGridLayoutManager(2, androidx.recyclerview.widget.StaggeredGridLayoutManager.VERTICAL)
@@ -210,6 +231,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     val clickedPlace = viewModel.places.value.find { it.id == placeId }
 
                     if (clickedPlace != null) {
+                        currentSelectedPlace = clickedPlace
                         // 👇 AFFICHAGE DU NOUVEAU BOTTOM SHEET MODULAIRE 👇
                         val bottomSheet = PlaceDetailsBottomSheet(clickedPlace)
                         bottomSheet.show(childFragmentManager, "PlaceDetailsBottomSheet")

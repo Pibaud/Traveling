@@ -94,10 +94,12 @@ fun Route.shareRoutes() {
                 // On récupère le paramètre "tab" (par défaut "public")
                 val tab = call.request.queryParameters["tab"] ?: "public"
 
+                val focusPostId = call.request.queryParameters["focusPostId"]
+
                 // Si tab vaut "groups", on active le filtre
                 val isGroupsOnly = (tab == "groups")
 
-                val feed = PostService.getFeed(currentUserId, isGroupsOnly)
+                val feed = PostService.getFeed(currentUserId, isGroupsOnly, focusPostId)
                 call.respond(HttpStatusCode.OK, feed)
             } catch (e: Exception) {
                 application.log.error("Erreur feed", e)

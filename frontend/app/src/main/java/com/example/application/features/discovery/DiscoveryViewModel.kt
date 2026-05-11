@@ -18,11 +18,6 @@ class DiscoveryViewModel : ViewModel() {
     val posts: LiveData<List<Post>> = _posts
     private var currentTab = "public"
 
-    init {
-        // Au démarrage du ViewModel, on charge le feed
-        loadMorePosts()
-    }
-
     fun setTab(tab: String) {
         if (currentTab != tab) {
             currentTab = tab
@@ -31,13 +26,13 @@ class DiscoveryViewModel : ViewModel() {
         }
     }
 
-    fun loadMorePosts() {
+    fun loadMorePosts(focusPostId: String? = null) {
         val currentUserId = Firebase.auth.currentUser?.uid ?: ""
 
         viewModelScope.launch {
             try {
-                // On passe le currentTab à la requête Retrofit
-                val fetchedPosts = RetrofitInstance.api.getFeed(currentUserId, currentTab)
+                // On passe le focusPostId à l'API
+                val fetchedPosts = RetrofitInstance.api.getFeed(currentUserId, currentTab, focusPostId)
                 _posts.value = fetchedPosts
                 Log.d("FeedNetwork", "Succès : ${fetchedPosts.size} posts récupérés")
             } catch (e: Exception) {

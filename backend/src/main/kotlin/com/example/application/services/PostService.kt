@@ -80,7 +80,7 @@ object PostService {
     }
 
     // 1. On ajoute currentUserId en paramètre
-    suspend fun getFeed(currentUserId: String?, isGroupsOnly: Boolean = false): List<Post> = dbQuery {
+    suspend fun getFeed(currentUserId: String?, isGroupsOnly: Boolean = false, focusPostId: String?): List<Post> = dbQuery {
         val baseSql = """
             SELECT 
                 p.id as post_id, 
@@ -171,6 +171,22 @@ object PostService {
                         isLikedByMe = isLikedByMe
                     )
                 )
+            }
+        }
+
+        if (focusPostId != null) {
+            // On cherche le post dans la liste
+            val focusedPost = results.find { it.id == focusPostId }
+
+            if (focusedPost != null) {
+                // On le retire de sa position actuelle...
+                results.remove(focusedPost)
+                // ...et on le remet en tout premier ! (Index 0)
+                results.add(0, focusedPost)
+            } else {
+                // Bonus Pro : si le post est trop vieux et n'était pas dans 
+                // la première requête SQL, tu fais une requête spéciale pour aller 
+                // le chercher en base et tu l'ajoutes à l'index 0.
             }
         }
         results

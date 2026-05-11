@@ -48,10 +48,11 @@ interface TravelingApiService {
         @Body request: CreatePostRequest // <-- Remplacement total du Multipart
     ): Response<Unit>
 
-    @GET("share/feed")
+    @GET("share/feed") // Remplace par ta vraie route de feed si elle est différente
     suspend fun getFeed(
         @Query("userId") userId: String,
-        @Query("tab") tab: String
+        @Query("tab") tab: String,
+        @Query("focusPostId") focusPostId: String? = null // 👈 Le nouveau paramètre
     ): List<Post>
 
     @POST("share/like")
