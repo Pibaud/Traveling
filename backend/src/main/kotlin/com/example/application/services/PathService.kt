@@ -2,6 +2,7 @@ package com.example.application.services
 
 import com.example.application.DatabaseFactory.dbQuery
 import com.example.application.ItineraryLikes
+import com.example.application.UserFollows
 import com.example.application.models.GeneratePathRequest
 import com.example.application.models.ItineraryResponse
 import com.example.application.models.Place
@@ -178,10 +179,12 @@ object PathService {
             .map { it[ItineraryLikes.itineraryId] }
             .toSet()
 
-        val query = when (category) {
-            "SUGGESTIONS" -> Itineraries.selectAll().limit(10)
-            "LIKED" -> Itineraries.innerJoin(ItineraryLikes).select { ItineraryLikes.userId eq userId }
-            "POPULAR" -> {
+        val query = when {
+            category == "SUGGESTIONS" -> Itineraries.selectAll().limit(10)
+
+            category == "LIKED" -> Itineraries.innerJoin(ItineraryLikes).select { ItineraryLikes.userId eq userId }
+
+            category == "POPULAR" -> {
                 val likeCount = ItineraryLikes.userId.count()
                 Itineraries.innerJoin(ItineraryLikes)
                     .slice(Itineraries.columns + likeCount)
@@ -190,6 +193,32 @@ object PathService {
                     .orderBy(likeCount to SortOrder.DESC)
                     .limit(30)
             }
+
+            category == "FOLLOWING" -> {
+                val followedIds = UserFollows.select { UserFollows.followerId eq userId }.map { it[UserFollows.followedId] }
+                if (followedIds.isEmpty()) return@dbQuery emptyList()
+
+                val likeCount = ItineraryLikes.userId.count()
+                // 👇 MODIFICATION SÉCURITÉ : leftJoin au lieu de innerJoin 👇
+                Itineraries.leftJoin(ItineraryLikes)
+                    .slice(Itineraries.columns + likeCount)
+                    .select { Itineraries.authorId inList followedIds }
+                    .groupBy(Itineraries.id)
+                    .orderBy(likeCount to SortOrder.DESC)
+                    .limit(20)
+            }
+
+            category.startsWith("AUTHOR_") -> {
+                val authorId = category.removePrefix("AUTHOR_")
+                val likeCount = ItineraryLikes.userId.count()
+                // 👇 MODIFICATION SÉCURITÉ : leftJoin au lieu de innerJoin 👇
+                Itineraries.leftJoin(ItineraryLikes)
+                    .slice(Itineraries.columns + likeCount)
+                    .select { Itineraries.authorId eq authorId }
+                    .groupBy(Itineraries.id)
+                    .orderBy(likeCount to SortOrder.DESC)
+            }
+
             else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
         }
 
@@ -203,7 +232,7 @@ object PathService {
             .select { ItineraryLikes.itineraryId inList itineraryIds }
             .toList()
 
-        // 👇 LA MAGIE : On récupère tous les pseudos des auteurs en UNE SEULE requête ! 👇
+        // On récupère tous les pseudos des auteurs en UNE SEULE requête
         val authorNamesMap = mutableMapOf<String, String>()
         if (authorIds.isNotEmpty()) {
             val idsFormatted = authorIds.joinToString("','", "'", "'")
@@ -270,7 +299,7 @@ object PathService {
                 isLiked = likedItineraryIds.contains(itineraryId),
                 likeCount = totalLikesForThisItinerary,
                 userId = authorId,
-                authorName = currentAuthorName // 👈 ON INJECTE LE VRAI PSEUDO ICI !
+                authorName = currentAuthorName
             )
         }
     }

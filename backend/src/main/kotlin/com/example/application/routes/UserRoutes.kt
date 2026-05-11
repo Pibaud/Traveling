@@ -22,14 +22,10 @@ fun Route.userRoutes() {
 
     // 👇 NOUVELLE ROUTE POUR LE PROFIL 👇
     get("/users/{uid}/profile") {
-        val uid = call.parameters["uid"] ?: return@get call.respond(HttpStatusCode.BadRequest, "UID manquant")
-
-        val profile = UserService.getUserProfile(uid)
-        if (profile != null) {
-            call.respond(HttpStatusCode.OK, profile)
-        } else {
-            call.respond(HttpStatusCode.NotFound, "Utilisateur introuvable")
-        }
+        val targetUid = call.parameters["uid"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+        val currentUid = call.request.queryParameters["currentUserId"] // Optionnel
+        val profile = UserService.getUserProfile(targetUid, currentUid)
+        if (profile != null) call.respond(HttpStatusCode.OK, profile) else call.respond(HttpStatusCode.NotFound)
     }
 
     put("/users/{uid}/profile") {
@@ -37,7 +33,7 @@ fun Route.userRoutes() {
 
         try {
             val request = call.receive<UpdateProfileRequest>()
-            val success = UserService.updateProfile(uid, request.bio, request.avatarUrl)
+            val success = UserService.updateProfile(uid, request.bio, request.avatarUrl, request.preferences)
 
             if (success) {
                 call.respond(HttpStatusCode.OK, mapOf("status" to "success"))
@@ -47,5 +43,12 @@ fun Route.userRoutes() {
         } catch (e: Exception) {
             call.respond(HttpStatusCode.BadRequest, "Format de requête invalide")
         }
+    }
+
+    post("/users/{uid}/follow/{targetUid}") {
+        val uid = call.parameters["uid"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+        val targetUid = call.parameters["targetUid"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+        val isNowFollowing = UserService.toggleFollow(uid, targetUid)
+        call.respond(HttpStatusCode.OK, mapOf("isFollowing" to isNowFollowing))
     }
 }
