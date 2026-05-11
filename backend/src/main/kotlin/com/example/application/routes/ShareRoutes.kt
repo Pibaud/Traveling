@@ -160,5 +160,20 @@ fun Route.shareRoutes() {
                 call.respond(HttpStatusCode.OK, mapOf("status" to resultStatus))
             }
         }
+
+        get("/groups/{groupId}/posts") {
+            val groupId = call.parameters["groupId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val userId = call.request.queryParameters["userId"] // Optionnel pour savoir s'il a liké
+
+            val posts = PostService.getPostsForGroup(groupId, userId)
+            call.respond(HttpStatusCode.OK, posts)
+        }
+
+        get("/groups/{groupId}/members") {
+            val groupId = call.parameters["groupId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+
+            val members = GroupService.getGroupMembers(groupId)
+            call.respond(HttpStatusCode.OK, members)
+        }
     }
 }

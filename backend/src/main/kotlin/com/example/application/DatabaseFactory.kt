@@ -107,7 +107,7 @@ object Groups : Table("groups") {
 
 object GroupMembers : Table("group_members") {
     val groupId = uuid("group_id").references(Groups.id, onDelete = ReferenceOption.CASCADE)
-    val userId = varchar("user_id", 100)
+    val userId = varchar("user_id", 128).references(Users.firebaseId, onDelete = ReferenceOption.CASCADE)
     val role = varchar("role", 20).default("MEMBER")
     val status = varchar("status", 20).default("ACCEPTED")
     val shouldNotify = bool("should_notify").default(false)
