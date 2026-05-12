@@ -8,5 +8,6 @@ data class CreatePostRequest(
     val isPublic: Boolean,
     val groupIds: List<String> = emptyList(),
     val imageUrls: List<String>,
-    val authorId: String
+    val authorId: String,
+    val embedding: List<Float>? = null
 )

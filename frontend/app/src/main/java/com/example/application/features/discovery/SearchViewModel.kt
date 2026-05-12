@@ -3,10 +3,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.application.model.Place
 import com.example.application.model.Post
+import com.example.application.model.RetrofitInstance
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class SearchViewModel(private val apiService: TravelingApiService) : ViewModel() {
@@ -48,7 +50,7 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
     private var currentCategory: String? = null
     private var currentOffset = 0
     private val pageSize = 20
-    private var isLoading = false
+    private var isPaginating = false
 
     fun fetchPlacesByCategory(category: String) {
         if (category != currentCategory) {
@@ -58,13 +60,13 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
             Log.d("PAGINATION", "🔄 Nouvelle catégorie '$category' → reset offset")
         }
 
-        if (isLoading) {
+        if (isPaginating) {
             Log.d("PAGINATION", "⏳ Déjà en chargement, appel ignoré")
             return
         }
 
         viewModelScope.launch {
-            isLoading = true
+            isPaginating = true
             Log.d("PAGINATION", "📤 Requête envoyée → category=$category, offset=$currentOffset, limit=$pageSize")
             try {
                 val result = apiService.getPlacesByCategory(
@@ -79,7 +81,7 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
             } catch (e: Exception) {
                 Log.e("PAGINATION", "❌ Erreur réseau : ${e.message}")
             } finally {
-                isLoading = false
+                isPaginating = false
             }
         }
     }
@@ -97,10 +99,10 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
             _authorPosts.value = emptyList()
         }
 
-        if (isLoading) return
+        if (isPaginating) return
 
         viewModelScope.launch {
-            isLoading = true
+            isPaginating = true
             try {
                 val result = apiService.getPostsByAuthor(authorId, pageSize, authorOffset)
                 _authorPosts.value = _authorPosts.value + result
@@ -108,7 +110,7 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
             } catch (e: Exception) {
                 Log.e("PAGINATION", "Erreur auteur: ${e.message}")
             } finally {
-                isLoading = false
+                isPaginating = false
             }
         }
     }
@@ -117,5 +119,28 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
         currentAuthorId = null
         authorOffset = 0
         _authorPosts.value = emptyList()
+    }
+
+    private val _searchResults = MutableStateFlow<List<Post>>(emptyList())
+    val searchResults = _searchResults.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    fun loadSimilarPosts(postId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val currentUserId = Firebase.auth.currentUser?.uid
+                // Appel à l'API Ktor
+                val posts = RetrofitInstance.api.getSimilarPosts(postId, currentUserId)
+                _searchResults.value = posts
+            } catch (e: Exception) {
+                // Gérer l'erreur (Toast, etc.)
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }

@@ -83,6 +83,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         // 2. Initialisation des écouteurs (clics, recherche...)
         setupListeners()
 
+        val similarityPostId = arguments?.getString("similarityPostId")
+        if (similarityPostId != null) {
+            // On fait un peu de cosmétique
+            binding.etSearchPlace.setText("✨ Posts similaires", false)
+            binding.etSearchPlace.clearFocus()
+
+            // On force l'affichage de la grille
+            switchToGridView()
+
+            // ON LANCE L'IA !
+            viewModel.loadSimilarPosts(similarityPostId)
+        }
+
         // 3. Observation des données du ViewModel
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.places.collect { places ->
@@ -185,6 +198,35 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     binding.rvMapPlaces.visibility = View.GONE
                     currentSelectedPlace = null
                 }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.searchResults.collect { posts ->
+                if (posts.isNotEmpty()) {
+                    // On met à jour la grille
+                    if (binding.rvSearchGrid.adapter != staggeredPostAdapter) {
+                        binding.rvSearchGrid.adapter = staggeredPostAdapter
+                    }
+                    staggeredPostAdapter.submitList(posts)
+
+                    // On met à jour le carrousel horizontal (si on bascule sur la Map)
+                    if (binding.rvMapPlaces.adapter != horizontalPostAdapter) {
+                        binding.rvMapPlaces.adapter = horizontalPostAdapter
+                    }
+                    // Le 'false' car ce n'est pas une pagination, on remplace tout
+                    horizontalPostAdapter.submitList(posts, false)
+
+                    // On met à jour les points sur la carte
+                    val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
+                    updateMapMarkers(placesFromPosts)
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isLoading.collect { loading ->
+                binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
             }
         }
     }
