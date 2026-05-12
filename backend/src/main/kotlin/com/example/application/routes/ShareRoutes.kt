@@ -217,5 +217,13 @@ fun Route.shareRoutes() {
             val itineraries = com.example.application.services.PathService.getItinerariesByCategory(userId, "GROUP_$groupId")
             call.respond(HttpStatusCode.OK, itineraries)
         }
+
+        get("/posts/author/{uid}") {
+            val uid = call.parameters["uid"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+            val posts = PostService.getPostsByAuthor(uid, limit, offset)
+            call.respond(HttpStatusCode.OK,posts)
+        }
     }
 }

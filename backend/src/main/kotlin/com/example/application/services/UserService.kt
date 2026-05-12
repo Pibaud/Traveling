@@ -6,11 +6,13 @@ import com.example.application.models.Itineraries
 import com.example.application.ItineraryLikes
 import com.example.application.UserFollows
 import com.example.application.models.UserProfileResponse
+import com.example.application.models.UserSearchResponse
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.insertIgnore
+import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
 
@@ -27,6 +29,18 @@ object UserService {
             e.printStackTrace()
             false
         }
+    }
+
+    suspend fun searchUsers(query: String, limit: Int = 5): List<UserSearchResponse> = dbQuery {
+        Users.select { Users.username.lowerCase() like "%${query.lowercase()}%" }
+            .limit(limit)
+            .map { row ->
+                UserSearchResponse(
+                    uid = row[Users.firebaseId],
+                    username = row[Users.username] ?: "Inconnu",
+                    avatarUrl = row.getOrNull(Users.avatarUrl)
+                )
+            }
     }
 
     suspend fun getUserProfile(targetUid: String, currentUid: String?): UserProfileResponse? = dbQuery {

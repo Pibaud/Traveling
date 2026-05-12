@@ -83,4 +83,39 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
             }
         }
     }
+
+    private val _authorPosts = MutableStateFlow<List<Post>>(emptyList())
+    val authorPosts: StateFlow<List<Post>> = _authorPosts
+
+    private var currentAuthorId: String? = null
+    private var authorOffset = 0
+
+    fun fetchPostsByAuthor(authorId: String) {
+        if (authorId != currentAuthorId) {
+            currentAuthorId = authorId
+            authorOffset = 0
+            _authorPosts.value = emptyList()
+        }
+
+        if (isLoading) return
+
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                val result = apiService.getPostsByAuthor(authorId, pageSize, authorOffset)
+                _authorPosts.value = _authorPosts.value + result
+                authorOffset += result.size
+            } catch (e: Exception) {
+                Log.e("PAGINATION", "Erreur auteur: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun resetAuthorFilter() {
+        currentAuthorId = null
+        authorOffset = 0
+        _authorPosts.value = emptyList()
+    }
 }
