@@ -297,22 +297,31 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
                 // On réutilise la route qu'on avait créée pour la page Social !
                 val myGroups = RetrofitInstance.api.getMyGroups(currentUser.uid)
 
-                binding.chipGroupMyGroups.removeAllViews()
+                binding.chipGroupGroups.removeAllViews()
                 myGroups.forEach { group ->
+                    // Dans ta boucle de création des chips de groupes
                     val chip = Chip(requireContext()).apply {
                         text = group.name
-                        isCheckable = true
-                        chipBackgroundColor = ContextCompat.getColorStateList(requireContext(), R.color.primary_color) // Optionnel : à adapter à tes couleurs
+                        isCheckable = true // 👈 INDISPENSABLE pour l'état sélectionné
+
+                        // Application des couleurs dynamiques
+                        chipBackgroundColor = ContextCompat.getColorStateList(requireContext(), R.color.chip_group_background_color)
+                        setTextColor(ContextCompat.getColorStateList(requireContext(), R.color.chip_group_text_color))
+
+                        // Suppression de l'icône de fermeture si elle existe par défaut
+                        isCloseIconVisible = false
+
                         setOnCheckedChangeListener { _, isChecked ->
                             if (isChecked) {
                                 selectedGroupIds.add(group.id)
+                                isChipIconVisible = true
                             } else {
                                 selectedGroupIds.remove(group.id)
+                                isChipIconVisible = false
                             }
-                            validatePublishState()
                         }
                     }
-                    binding.chipGroupMyGroups.addView(chip)
+                    binding.chipGroupGroups.addView(chip)
                 }
             } catch (e: Exception) {
                 // Si ça rate, c'est que l'utilisateur n'a pas de réseau

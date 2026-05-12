@@ -56,6 +56,20 @@ fun Route.shareRoutes() {
             }
         }
 
+        get("/places/category/{category}") {
+            val category = call.parameters["category"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+
+            application.log.info("📥 [PAGINATION] category=$category | limit=$limit | offset=$offset")
+
+            val places = PlaceService.getPlacesByCategory(category, limit, offset)
+
+            application.log.info("📤 [PAGINATION] Renvoi de ${places.size} lieux | IDs: ${places.map { it.id }}")
+
+            call.respond(HttpStatusCode.OK, places)
+        }
+
         get("/tags/suggest") {
             val q = call.request.queryParameters["q"] ?: ""
             if (q.length < 2) return@get call.respond(emptyList<String>())
@@ -94,10 +108,12 @@ fun Route.shareRoutes() {
                 // On récupère le paramètre "tab" (par défaut "public")
                 val tab = call.request.queryParameters["tab"] ?: "public"
 
+                val focusPostId = call.request.queryParameters["focusPostId"]
+
                 // Si tab vaut "groups", on active le filtre
                 val isGroupsOnly = (tab == "groups")
 
-                val feed = PostService.getFeed(currentUserId, isGroupsOnly)
+                val feed = PostService.getFeed(currentUserId, isGroupsOnly, focusPostId)
                 call.respond(HttpStatusCode.OK, feed)
             } catch (e: Exception) {
                 application.log.error("Erreur feed", e)
@@ -200,6 +216,14 @@ fun Route.shareRoutes() {
             // On utilise notre astuce du préfixe GROUP_ pour tout faire d'un coup !
             val itineraries = com.example.application.services.PathService.getItinerariesByCategory(userId, "GROUP_$groupId")
             call.respond(HttpStatusCode.OK, itineraries)
+        }
+
+        get("/posts/author/{uid}") {
+            val uid = call.parameters["uid"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+            val posts = PostService.getPostsByAuthor(uid, limit, offset)
+            call.respond(HttpStatusCode.OK,posts)
         }
     }
 }

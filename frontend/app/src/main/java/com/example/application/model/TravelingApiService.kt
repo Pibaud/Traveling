@@ -17,6 +17,7 @@ import com.example.application.model.SavePathRequest
 import com.example.application.model.ShareItineraryRequest
 import com.example.application.model.UpdateProfileRequest
 import com.example.application.model.UserProfileResponse
+import com.example.application.model.UserSearchResponse
 import retrofit2.Response
 import retrofit2.http.DELETE
 import retrofit2.http.PUT
@@ -44,22 +45,40 @@ interface TravelingApiService {
         @Query("userId") userId: String? = null
     ): List<Post>
 
+    @GET("share/places/category/{category}")
+    suspend fun getPlacesByCategory(
+        @Path("category") category: String,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Place>
+
     @POST("share/publish")
     suspend fun publishPost(
         @Body request: CreatePostRequest // <-- Remplacement total du Multipart
     ): Response<Unit>
 
-    @GET("share/feed")
+    @GET("share/feed") // Remplace par ta vraie route de feed si elle est différente
     suspend fun getFeed(
         @Query("userId") userId: String,
-        @Query("tab") tab: String
+        @Query("tab") tab: String,
+        @Query("focusPostId") focusPostId: String? = null // 👈 Le nouveau paramètre
     ): List<Post>
 
     @POST("share/like")
     suspend fun toggleLike(@Body request: LikeRequest): LikeResponse
 
+    @GET("share/posts/author/{uid}")
+    suspend fun getPostsByAuthor(
+        @Path("uid") uid: String,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Post>
+
     @POST("users/sync")
     suspend fun syncUser(@Body request: UserSyncRequest): Response<Unit>
+
+    @GET("users/search")
+    suspend fun searchUsers(@Query("q") query: String): List<UserSearchResponse>
 
     @POST("share/groups/create")
     suspend fun createGroup(@Body request: CreateGroupRequest): Response<Unit>

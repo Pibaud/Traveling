@@ -23,6 +23,12 @@ fun Route.userRoutes() {
         }
     }
 
+    get("/users/search") {
+        val q = call.request.queryParameters["q"] ?: ""
+        val users = UserService.searchUsers(q)
+        call.respond(users)
+    }
+
     // 👇 NOUVELLE ROUTE POUR LE PROFIL 👇
     get("/users/{uid}/profile") {
         val targetUid = call.parameters["uid"] ?: return@get call.respond(HttpStatusCode.BadRequest)

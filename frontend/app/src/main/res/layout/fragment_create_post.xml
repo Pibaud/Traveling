@@ -89,10 +89,12 @@
                 android:scrollbars="none">
 
                 <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chipGroupMyGroups"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/chipGroupGroups"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:singleLine="true" />
+                    android:layout_marginTop="8dp"
+                    app:singleSelection="false"
+                    app:chipSpacing="8dp" />
             </HorizontalScrollView>
 
             <LinearLayout
