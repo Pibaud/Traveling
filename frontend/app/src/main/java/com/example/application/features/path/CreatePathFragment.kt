@@ -2,51 +2,55 @@ package com.example.application.features.path
 
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import android.widget.Toast
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.RecyclerView
 import com.example.application.R
 import com.example.application.databinding.FragmentCreatePathBinding
+import com.example.application.features.places.LikedPlacesAdapter
+import com.example.application.features.places.PlaceDetailsBottomSheet
 import com.example.application.model.GeneratePathRequest
+import com.example.application.model.Place
 import com.example.application.model.RetrofitInstance
 import com.google.android.material.chip.Chip
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 
 class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
 
     companion object {
         var draftRequest: GeneratePathRequest? = null
-        var draftPlaces: List<com.example.application.model.Place>? = null // 👈 NOUVEAU
+        var draftPlaces: List<Place>? = null
     }
+
     private var _binding: FragmentCreatePathBinding? = null
     private val binding get() = _binding!!
 
-    private val currentForcedPlaces = mutableListOf<com.example.application.model.Place>()
+    private val currentForcedPlaces = mutableListOf<Place>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentCreatePathBinding.bind(view)
 
-        // --- GESTION DES LIEUX IMPOSÉS (Création ou Regénération) ---
+        // --- 1. GESTION DES LIEUX IMPOSÉS ---
         currentForcedPlaces.clear()
         binding.chipGroupForcedPlaces.removeAllViews()
 
-        // Cas A : On vient de la fiche d'un seul lieu (PlaceDetailsBottomSheet)
         arguments?.getString("forcedPlaceId")?.let { id ->
             val name = arguments?.getString("forcedPlaceName") ?: "Ce lieu"
-            currentForcedPlaces.add(com.example.application.model.Place(id = id, name = name))
+            currentForcedPlaces.add(Place(id = id, name = name))
         }
 
-        // Cas B : On vient d'une regénération d'itinéraire complet
         draftPlaces?.let { places ->
             currentForcedPlaces.addAll(places)
-            draftPlaces = null // On vide la boîte aux lettres
+            draftPlaces = null
         }
 
-        // On affiche les bulles
         if (currentForcedPlaces.isNotEmpty()) {
             binding.llForcedPlaceIndicator.visibility = View.VISIBLE
             currentForcedPlaces.forEach { place ->
@@ -56,6 +60,35 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             binding.llForcedPlaceIndicator.visibility = View.GONE
         }
 
+        // --- 2. GESTION DES LIEUX FAVORIS ---
+        val userId = Firebase.auth.currentUser?.uid
+        val likedPlacesAdapter = LikedPlacesAdapter(emptyList()) { selectedPlace ->
+            // On vérifie que le lieu n'est pas déjà dans la bulle d'imposition
+            if (!currentForcedPlaces.any { it.id == selectedPlace.id }) {
+                currentForcedPlaces.add(selectedPlace)
+                binding.llForcedPlaceIndicator.visibility = View.VISIBLE
+                addPlaceChip(selectedPlace)
+            }
+        }
+        binding.rvLikedPlaces.adapter = likedPlacesAdapter
+
+        if (userId != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val response = RetrofitInstance.api.getLikedPlaces(userId)
+                    if (response.isSuccessful) {
+                        val places = response.body() ?: emptyList()
+                        if (places.isNotEmpty()) {
+                            binding.tvLikedPlacesTitle.visibility = View.VISIBLE
+                            binding.rvLikedPlaces.visibility = View.VISIBLE
+                            likedPlacesAdapter.updateData(places)
+                        }
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+        }
+
+        // --- 3. CONFIGURATION DES VISUELS (Heure, curseurs...) ---
         setupDynamicVisuals()
 
         binding.etStartTime.setOnClickListener {
@@ -73,11 +106,9 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             picker.show(parentFragmentManager, "TIME_PICKER")
         }
 
-        // --- PRÉ-REMPLISSAGE EN CAS DE REGÉNÉRATION ---
         draftRequest?.let { request ->
             binding.etBudget.setText(request.budgetMax.toString())
 
-            // 👇 NOUVEAU : On convertit les minutes en format texte HH:mm 👇
             val h = (request.startTimeMinutes / 60) % 24
             val m = request.startTimeMinutes % 60
             binding.etStartTime.setText(String.format("%02d:%02d", h, m))
@@ -85,19 +116,16 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             binding.sliderEffort.value = request.effortLevel.toFloat()
             binding.sliderWeather.value = request.weatherTolerance.toFloat()
 
-            // Repas
             if (request.mealIncluded) {
                 binding.radioMealYes.isChecked = true
             } else {
                 binding.radioMealNo.isChecked = true
             }
 
-            // Catégories (Chips)
             binding.chipCulture.isChecked = request.categories.contains("CULTURE")
             binding.chipDecouverte.isChecked = request.categories.contains("DECOUVERTE")
             binding.chipLoisirs.isChecked = request.categories.contains("LOISIRS")
 
-            // Durée
             val durationId = when (request.durationHours) {
                 1 -> R.id.chipDur1h
                 2 -> R.id.chipDur2h
@@ -109,17 +137,15 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             }
             binding.chipGroupDuration.check(durationId)
 
-            // On vide la boîte aux lettres pour que la prochaine ouverture soit vierge
             draftRequest = null
         }
 
-        // --- GÉNÉRATION ---
+        // --- 4. ACTION DU BOUTON GÉNÉRER ---
         binding.btnGenerate.setOnClickListener {
-            // On crée la liste des IDs sélectionnés (qui contient notre lieu imposé)
             val selectedIds = currentForcedPlaces.map { it.id }
 
             val timeString = binding.etStartTime.text.toString()
-            var startMinutes = 9 * 60 + 30 // 9h30 par défaut
+            var startMinutes = 9 * 60 + 30
             if (timeString.isNotBlank()) {
                 val timeParts = timeString.split(":")
                 if (timeParts.size == 2) {
@@ -129,7 +155,6 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                 }
             }
 
-            // On crée la requête
             val request = GeneratePathRequest(
                 categories = getDbMappedActivities(),
                 selectedPlaceIds = selectedIds,
@@ -152,7 +177,7 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                         if (isResponseEmpty) {
                             Toast.makeText(
                                 requireContext(),
-                                "Paramètres de générations non compatibles veuillez changer de paramètres pour avoir des résultats",
+                                "Paramètres de génération non compatibles, veuillez modifier vos choix.",
                                 Toast.LENGTH_LONG
                             ).show()
                         } else {
@@ -170,15 +195,34 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         }
     }
 
-    // --- Fonction pour l'animation des Emojis ---
+    private fun addPlaceChip(place: Place) {
+        val chip = Chip(requireContext()).apply {
+            text = place.name
+            isCloseIconVisible = true
+
+            setOnCloseIconClickListener {
+                binding.chipGroupForcedPlaces.removeView(this)
+                currentForcedPlaces.remove(place)
+                if (currentForcedPlaces.isEmpty()) {
+                    binding.llForcedPlaceIndicator.visibility = View.GONE
+                }
+            }
+
+            setOnLongClickListener {
+                val placeDetailsSheet = PlaceDetailsBottomSheet(place)
+                placeDetailsSheet.show(parentFragmentManager, "PlaceDetailsSheet")
+                true
+            }
+        }
+        binding.chipGroupForcedPlaces.addView(chip)
+    }
+
     private fun setupDynamicVisuals() {
-        // Initialisation par défaut
         binding.tvEffortIcon.text = "🚶"
         binding.tvEffortText.text = "Balade tranquille"
         binding.tvWeatherIcon.text = "☀️"
         binding.tvWeatherText.text = "Grand soleil"
 
-        // Quand on bouge le curseur d'effort
         binding.sliderEffort.addOnChangeListener { _, value, _ ->
             when (value.toInt()) {
                 1 -> {
@@ -196,7 +240,6 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             }
         }
 
-        // Quand on bouge le curseur météo
         binding.sliderWeather.addOnChangeListener { _, value, _ ->
             when (value.toInt()) {
                 0 -> {
@@ -215,16 +258,15 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         }
     }
 
-    // --- Fonction pour convertir les choix de durée en Int (Heures) ---
     private fun getSelectedDurationInHours(): Int {
         return when (binding.chipGroupDuration.checkedChipId) {
             R.id.chipDur1h -> 1
             R.id.chipDur2h -> 2
             R.id.chipDur3h -> 3
-            R.id.chipDurHalf -> 4  // Considérons 4h pour une demi-journée
-            R.id.chipDurDay -> 24  // 24h pour 1 journée
-            R.id.chipDurWeekend -> 48 // 48h pour un week-end
-            else -> 1 // Valeur par défaut de sécurité
+            R.id.chipDurHalf -> 4
+            R.id.chipDurDay -> 24
+            R.id.chipDurWeekend -> 48
+            else -> 1
         }
     }
 
@@ -232,37 +274,15 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         return binding.chipGroupActivities.checkedChipIds.mapNotNull { id ->
             when (id) {
                 R.id.chipCulture -> "CULTURE"
-                R.id.chipDecouverte -> "DECOUVERTE" // 👈 Modifié ici
-                R.id.chipLoisirs -> "LOISIRS"       // 👈 Modifié ici
+                R.id.chipDecouverte -> "DECOUVERTE"
+                R.id.chipLoisirs -> "LOISIRS"
                 else -> null
             }
-        }
-    }
-
-    private fun getSelectedActivities(): List<String> {
-        return binding.chipGroupActivities.checkedChipIds.map { id ->
-            binding.root.findViewById<Chip>(id).text.toString()
         }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    private fun addPlaceChip(place: com.example.application.model.Place) {
-        val chip = Chip(requireContext()).apply {
-            text = place.name
-            isCloseIconVisible = true
-            // Quand on clique sur la croix, on supprime le lieu !
-            setOnCloseIconClickListener {
-                binding.chipGroupForcedPlaces.removeView(this)
-                currentForcedPlaces.remove(place)
-                if (currentForcedPlaces.isEmpty()) {
-                    binding.llForcedPlaceIndicator.visibility = View.GONE
-                }
-            }
-        }
-        binding.chipGroupForcedPlaces.addView(chip)
     }
 }

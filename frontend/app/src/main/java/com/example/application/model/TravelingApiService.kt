@@ -169,6 +169,20 @@ interface TravelingApiService {
         @Query("userId") userId: String
     ): retrofit2.Response<List<ItineraryResponse>>
 
+    @POST("share/places/like")
+    suspend fun togglePlaceLike(@Body request: LikeRequest): Response<Map<String, Boolean>>
+
+    @GET("share/places/{id}/like-status")
+    suspend fun getPlaceLikeStatus(
+        @Path("id") placeId: String,
+        @Query("userId") userId: String
+    ): Response<Map<String, Boolean>>
+
+    @GET("share/places/liked")
+    suspend fun getLikedPlaces(
+        @Query("userId") userId: String
+    ): Response<List<Place>>
+
     // Dans TravelingApiService
     @POST("users/{uid}/reports")
     suspend fun submitReport(

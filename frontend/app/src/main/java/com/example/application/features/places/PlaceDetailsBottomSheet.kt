@@ -1,4 +1,4 @@
-package com.example.application.features.path
+package com.example.application.features.places
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -74,6 +74,49 @@ class PlaceDetailsBottomSheet(
 
         // 4. Chargement des données
         loadPlacePosts()
+
+        val ivPlaceLike = view.findViewById<ImageView>(R.id.ivPlaceLike)
+        val userId = Firebase.auth.currentUser?.uid
+
+        // On récupère le statut du like à l'ouverture
+        if (userId != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val response = RetrofitInstance.api.getPlaceLikeStatus(place.id, userId)
+                    if (response.isSuccessful && response.body()?.get("liked") == true) {
+                        ivPlaceLike.setImageResource(R.drawable.ic_heart_filled)
+                        ivPlaceLike.setColorFilter(android.graphics.Color.RED)
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+        }
+
+        // On gère le clic
+        ivPlaceLike.setOnClickListener {
+            if (userId == null) {
+                GuestUpsellBottomSheet().show(childFragmentManager, "GuestUpsell")
+                return@setOnClickListener
+            }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    // On utilise le même LikeRequest que pour les posts (postId = place.id)
+                    val request = com.example.application.model.LikeRequest(postId = place.id, userId = userId)
+                    val response = RetrofitInstance.api.togglePlaceLike(request)
+
+                    if (response.isSuccessful) {
+                        val isNowLiked = response.body()?.get("liked") == true
+                        if (isNowLiked) {
+                            ivPlaceLike.setImageResource(R.drawable.ic_heart_filled)
+                            ivPlaceLike.setColorFilter(android.graphics.Color.RED)
+                        } else {
+                            ivPlaceLike.setImageResource(R.drawable.ic_heart_empty)
+                            ivPlaceLike.setColorFilter(android.graphics.Color.BLACK)
+                        }
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+        }
 
         // 5. Configuration des clics (Les fameux Toasts)
         btnViewItineraries.setOnClickListener {

@@ -225,5 +225,32 @@ fun Route.shareRoutes() {
             val posts = PostService.getPostsByAuthor(uid, limit, offset)
             call.respond(HttpStatusCode.OK,posts)
         }
+
+        // 1. Liker / Disliker un lieu
+        post("/places/like") {
+            try {
+                // On réutilise la structure de requête qu'on avait pour les posts
+                val request = call.receive<LikeRequest>()
+                val isLiked = PlaceService.toggleLike(request.postId, request.userId) // On utilise postId comme placeId pour aller plus vite
+                call.respond(HttpStatusCode.OK, mapOf("liked" to isLiked))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, "Erreur de like")
+            }
+        }
+
+        // 2. Vérifier si on a liké un lieu
+        get("/places/{id}/like-status") {
+            val placeId = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val userId = call.request.queryParameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val isLiked = PlaceService.isPlaceLiked(placeId, userId)
+            call.respond(HttpStatusCode.OK, mapOf("liked" to isLiked))
+        }
+
+        // 3. Récupérer les lieux favoris d'un utilisateur
+        get("/places/liked") {
+            val userId = call.request.queryParameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val places = PlaceService.getLikedPlaces(userId)
+            call.respond(HttpStatusCode.OK, places)
+        }
     }
 }

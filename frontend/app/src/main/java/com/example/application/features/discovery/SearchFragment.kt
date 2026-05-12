@@ -39,9 +39,9 @@ import com.example.application.utils.setupPlaceAutocomplete
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.offline.OfflineManager
 import androidx.core.widget.addTextChangedListener
+import com.example.application.features.places.PlaceDetailsBottomSheet
 import kotlinx.coroutines.isActive
 
-import com.example.application.features.path.PlaceDetailsBottomSheet
 import com.example.application.model.PlaceCategory
 import com.example.application.model.RetrofitInstance
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
