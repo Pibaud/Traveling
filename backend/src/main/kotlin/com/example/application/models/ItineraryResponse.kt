@@ -18,5 +18,6 @@ data class ItineraryResponse(
     var likeCount: Int = 0,
     val userId: String = "",
     val startTimeMinutes: Int,
-    val authorName: String = "Utilisateur" // 👈 LE NOUVEAU CHAMP
+    val authorName: String = "Utilisateur",
+    val sharedAt: Long = 0L
 )

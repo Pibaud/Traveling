@@ -175,5 +175,31 @@ fun Route.shareRoutes() {
             val members = GroupService.getGroupMembers(groupId)
             call.respond(HttpStatusCode.OK, members)
         }
+
+        // 👉 1. Route pour partager un itinéraire dans un groupe
+        post("/groups/share-itinerary") {
+            try {
+                val request = call.receive<com.example.application.models.ShareItineraryRequest>()
+                val success = com.example.application.services.PathService.shareItineraryToGroup(request.itineraryId, request.groupId)
+
+                if (success) {
+                    call.respond(HttpStatusCode.OK)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "Erreur lors du partage")
+                }
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, "Requête invalide")
+            }
+        }
+
+        // 👉 2. Route pour récupérer les itinéraires d'un groupe
+        get("/groups/{groupId}/itineraries") {
+            val groupId = call.parameters["groupId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val userId = call.request.queryParameters["userId"] ?: ""
+
+            // On utilise notre astuce du préfixe GROUP_ pour tout faire d'un coup !
+            val itineraries = com.example.application.services.PathService.getItinerariesByCategory(userId, "GROUP_$groupId")
+            call.respond(HttpStatusCode.OK, itineraries)
+        }
     }
 }

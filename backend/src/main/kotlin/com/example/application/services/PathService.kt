@@ -188,6 +188,8 @@ object PathService {
 
     suspend fun getItinerariesByCategory(userId: String, category: String): List<ItineraryResponse> = dbQuery {
 
+        var sharedTimestamps = mapOf<Int, Long>()
+
         val likedItineraryIds = ItineraryLikes
             .select { ItineraryLikes.userId eq userId }
             .map { it[ItineraryLikes.itineraryId] }
@@ -229,6 +231,29 @@ object PathService {
                     .select { Itineraries.authorId eq authorId }
                     .groupBy(Itineraries.id)
                     .orderBy(likeCount to SortOrder.DESC)
+            }
+
+            category.startsWith("GROUP_") -> {
+                val groupUuid = java.util.UUID.fromString(category.removePrefix("GROUP_"))
+
+                // 👇 NOUVEAU : On récupère l'ID ET le timestamp
+                val sharedData = com.example.application.GroupItineraries
+                    .select { com.example.application.GroupItineraries.groupId eq groupUuid }
+                    .associate {
+                        it[com.example.application.GroupItineraries.itineraryId] to it[com.example.application.GroupItineraries.sharedAt]
+                    }
+
+                sharedTimestamps = sharedData // On sauvegarde pour plus tard
+                val sharedItineraryIds = sharedData.keys.toList()
+
+                if (sharedItineraryIds.isEmpty()) return@dbQuery emptyList()
+
+                val likeCount = ItineraryLikes.userId.count()
+                Itineraries.leftJoin(ItineraryLikes)
+                    .slice(Itineraries.columns + likeCount)
+                    .select { Itineraries.id inList sharedItineraryIds }
+                    .groupBy(Itineraries.id)
+                    .orderBy(Itineraries.id to SortOrder.DESC)
             }
 
             else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
@@ -313,7 +338,8 @@ object PathService {
                 likeCount = totalLikesForThisItinerary,
                 startTimeMinutes = dbStartTime, // 👈 Ajout ici
                 userId = authorId,
-                authorName = currentAuthorName
+                authorName = currentAuthorName,
+                sharedAt = sharedTimestamps[itineraryId] ?: 0L
             )
         }
     }
@@ -463,6 +489,31 @@ object PathService {
             val arrival = formatTime(currentTimeMinutes)
             currentTimeMinutes += (place.duration * 60) + 30
             place.copy(arrivalTime = arrival)
+        }
+    }
+
+    suspend fun shareItineraryToGroup(itineraryId: Int, groupIdStr: String): Boolean = dbQuery {
+        try {
+            val groupUuid = java.util.UUID.fromString(groupIdStr)
+
+            // 1. On vérifie si l'itinéraire n'est pas DÉJÀ partagé dans ce groupe pour éviter les doublons
+            val exists = com.example.application.GroupItineraries.select {
+                (com.example.application.GroupItineraries.groupId eq groupUuid) and
+                        (com.example.application.GroupItineraries.itineraryId eq itineraryId)
+            }.count() > 0
+
+            if (!exists) {
+                // 2. On insère le lien
+                com.example.application.GroupItineraries.insert {
+                    it[groupId] = groupUuid
+                    it[this.itineraryId] = itineraryId
+                    it[sharedAt] = System.currentTimeMillis()
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 }

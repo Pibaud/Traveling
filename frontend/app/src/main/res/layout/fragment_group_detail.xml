@@ -11,17 +11,13 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/white"
-        android:fitsSystemWindows="true"
-        app:elevation="4dp">
+        android:background="@android:color/white">
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbarGroup"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/round_chevron_left_48"
-            app:navigationIconTint="#7A1C2A"
             app:titleCentered="true"
-            app:titleTextColor="@android:color/black"
             tools:title="Nom du Groupe">
             <ImageView
                 android:id="@+id/ivGroupInfo"
@@ -30,19 +26,17 @@
                 android:layout_gravity="end"
                 android:padding="16dp"
                 android:src="@drawable/round_info_outline_24"
-                app:tint="#7A1C2A"
-                android:background="?attr/selectableItemBackgroundBorderless"/>
+                app:tint="#7A1C2A"/>
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvGroupPosts"
+        android:id="@+id/rvFeed"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         android:clipToPadding="false"
         android:paddingTop="16dp"
-        android:paddingBottom="100dp"
-        tools:listitem="@layout/item_group_post"/>
+        android:paddingBottom="100dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
