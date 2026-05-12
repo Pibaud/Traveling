@@ -254,13 +254,26 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         val chip = Chip(requireContext()).apply {
             text = place.name
             isCloseIconVisible = true
-            // Quand on clique sur la croix, on supprime le lieu !
+
+            // 1. Clic sur la croix : on supprime le lieu (comme avant)
             setOnCloseIconClickListener {
                 binding.chipGroupForcedPlaces.removeView(this)
                 currentForcedPlaces.remove(place)
                 if (currentForcedPlaces.isEmpty()) {
                     binding.llForcedPlaceIndicator.visibility = View.GONE
                 }
+            }
+
+            // 👇 2. NOUVEAU : Clic prolongé pour ouvrir la fiche du lieu 👇
+            setOnLongClickListener {
+                // On instancie la bottom sheet avec le lieu actuel
+                val placeDetailsSheet = PlaceDetailsBottomSheet(place)
+                // On l'affiche par-dessus l'écran de création
+                placeDetailsSheet.show(parentFragmentManager, "PlaceDetailsSheet")
+
+                // Le "true" indique à Android qu'on a intercepté le clic long
+                // (pour ne pas déclencher un clic normal en même temps)
+                true
             }
         }
         binding.chipGroupForcedPlaces.addView(chip)
