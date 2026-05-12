@@ -41,8 +41,12 @@ class FeedFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
+        val targetPostId = arguments?.getString("scrollToPostId")
+
+        // On lance le premier chargement en lui donnant (ou non) le focus
+        viewModel.loadMorePosts(focusPostId = targetPostId)
         observeViewModel()
-        setupTabs() // <-- Ajoute cet appel
+        setupTabs()
 
         binding.ivSearch.setOnClickListener {
             findNavController().navigate(R.id.action_feed_to_search)

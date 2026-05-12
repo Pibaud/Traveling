@@ -3,7 +3,7 @@ package com.example.application.features.discovery
 import coil.load
 import com.example.application.model.Post
 
-class PlacePostsAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<PlacePostsAdapter.PhotoViewHolder>() {
+class PlacePostsAdapter(private val onPostClick: (Post) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<PlacePostsAdapter.PhotoViewHolder>() {
     private var posts = listOf<Post>()
 
     fun submitList(newList: List<Post>) {
@@ -23,6 +23,10 @@ class PlacePostsAdapter : androidx.recyclerview.widget.RecyclerView.Adapter<Plac
         // On affiche uniquement la première photo du post
         post.imageUrls.firstOrNull()?.let { url ->
             imageView.load(url) { crossfade(true) }
+        }
+
+        holder.itemView.setOnClickListener {
+            onPostClick(post)
         }
     }
 

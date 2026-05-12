@@ -64,7 +64,11 @@ class PlaceDetailsBottomSheet(
         ivCategoryIcon.setImageResource(iconRes)
 
         // 3. Configuration de la grille de photos
-        placePostsAdapter = PlacePostsAdapter()
+        placePostsAdapter = PlacePostsAdapter { clickedPost ->
+            val bundle = Bundle().apply { putString("scrollToPostId", clickedPost.id) }
+            findNavController().navigate(R.id.feedFragment, bundle)
+            dismiss() // On ferme le bottom sheet pour faire propre
+        }
         rvPosts.layoutManager = GridLayoutManager(requireContext(), 3)
         rvPosts.adapter = placePostsAdapter
 

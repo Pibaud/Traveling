@@ -44,15 +44,23 @@ interface TravelingApiService {
         @Query("userId") userId: String? = null
     ): List<Post>
 
+    @GET("share/places/category/{category}")
+    suspend fun getPlacesByCategory(
+        @Path("category") category: String,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Place>
+
     @POST("share/publish")
     suspend fun publishPost(
         @Body request: CreatePostRequest // <-- Remplacement total du Multipart
     ): Response<Unit>
 
-    @GET("share/feed")
+    @GET("share/feed") // Remplace par ta vraie route de feed si elle est différente
     suspend fun getFeed(
         @Query("userId") userId: String,
-        @Query("tab") tab: String
+        @Query("tab") tab: String,
+        @Query("focusPostId") focusPostId: String? = null // 👈 Le nouveau paramètre
     ): List<Post>
 
     @POST("share/like")
