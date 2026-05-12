@@ -180,3 +180,10 @@ object GroupItineraries : Table("group_itineraries") {
 
     override val primaryKey = PrimaryKey(groupId, itineraryId)
 }
+
+object PlaceLikes : Table("place_likes") {
+    val userId = varchar("user_id", 128)
+    val placeId = varchar("place_id", 50).references(Places.id, onDelete = ReferenceOption.CASCADE)
+
+    override val primaryKey = PrimaryKey(userId, placeId)
+}

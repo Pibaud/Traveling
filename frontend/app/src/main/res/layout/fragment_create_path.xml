@@ -45,8 +45,30 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:singleSelection="false" />
-
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLikedPlacesTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Piocher dans vos lieux favoris :"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp"
+            tools:visibility="visible"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvLikedPlaces"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:clipToPadding="false"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_liked_place_thumbnail"
+            android:layout_marginBottom="24dp"
+            tools:visibility="visible"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -58,12 +80,14 @@
             android:id="@+id/chipGroupActivities"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:singleLine="true"> <com.google.android.material.chip.Chip
-            android:id="@+id/chipCulture"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Culture" />
+            app:singleLine="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipCulture"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Culture" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipDecouverte"
@@ -110,25 +134,9 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Inclure vos lieux favoris"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvLikedPlaces"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:clipToPadding="false"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:listitem="@layout/item_liked_place_thumbnail"
-            android:layout_marginBottom="24dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:text="Budget estimé (€)"
             android:textStyle="bold"
+            android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"/>
 
         <com.google.android.material.textfield.TextInputLayout
