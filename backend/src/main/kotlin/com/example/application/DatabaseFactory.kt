@@ -124,6 +124,7 @@ object Itineraries : Table("itinerary") {
     val avgEffort = double("avg_effort")
     val mealIncluded = bool("meal_included")
     val authorId = varchar("author_id", 128)
+    val startTimeMinutes = integer("start_time_minutes").default(570)
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -148,6 +149,7 @@ object ItineraryLikes : Table("itinerary_likes") {
 object GroupPosts : Table("group_posts") {
     val groupId = uuid("group_id").references(Groups.id, onDelete = ReferenceOption.CASCADE)
     val postId = uuid("post_id").references(Posts.id, onDelete = ReferenceOption.CASCADE)
+    val sharedAt = long("shared_at").clientDefault { System.currentTimeMillis() } // 👈 NOUVEAU
 
     override val primaryKey = PrimaryKey(groupId, postId)
 }
@@ -169,4 +171,12 @@ object UserFollows : Table("user_follows") {
     val followerId = varchar("follower_id", 255)
     val followedId = varchar("followed_id", 255)
     override val primaryKey = PrimaryKey(followerId, followedId)
+}
+
+object GroupItineraries : Table("group_itineraries") {
+    val groupId = uuid("group_id").references(Groups.id, onDelete = ReferenceOption.CASCADE)
+    val itineraryId = integer("itinerary_id").references(Itineraries.id, onDelete = ReferenceOption.CASCADE)
+    val sharedAt = long("shared_at").clientDefault { System.currentTimeMillis() } // 👈 NOUVEAU
+
+    override val primaryKey = PrimaryKey(groupId, itineraryId)
 }

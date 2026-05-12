@@ -14,6 +14,7 @@ import retrofit2.http.Query
 import com.example.application.model.Post
 import com.example.application.model.ItineraryResponse
 import com.example.application.model.SavePathRequest
+import com.example.application.model.ShareItineraryRequest
 import com.example.application.model.UpdateProfileRequest
 import com.example.application.model.UserProfileResponse
 import retrofit2.Response
@@ -134,6 +135,19 @@ interface TravelingApiService {
         @Path("uid") uid: String,
         @Body request: Map<String, String>
     ): Response<Unit>
+
+    // Partager un itinéraire dans un groupe
+    @POST("/share/groups/share-itinerary")
+    suspend fun shareItineraryToGroup(
+        @Body request: ShareItineraryRequest
+    ): retrofit2.Response<Unit>
+
+    // Récupérer les itinéraires d'un groupe
+    @GET("/share/groups/{groupId}/itineraries")
+    suspend fun getGroupItineraries(
+        @Path("groupId") groupId: String,
+        @Query("userId") userId: String
+    ): retrofit2.Response<List<ItineraryResponse>>
 
 }
 

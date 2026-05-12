@@ -63,6 +63,7 @@ object PostService {
                 GroupPosts.insert {
                     it[groupId] = groupUuid
                     it[postId] = insertedPostId
+                    it[sharedAt] = System.currentTimeMillis()
                 }
 
                 // --- NOUVEAU : On incrémente le compteur nb_posts du groupe ---
@@ -213,7 +214,7 @@ object PostService {
                 p.image_urls, 
                 (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
                 EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked_by_me,
-                CAST(EXTRACT(EPOCH FROM p.created_at) * 1000 AS BIGINT) as timestamp,
+                p.created_at as timestamp,
                 u.username as author_name,
                 pl.id as place_id, 
                 pl.name as place_name, 

@@ -7,9 +7,7 @@ import com.example.application.models.GeneratePathRequest
 import com.example.application.models.ItineraryResponse
 import com.example.application.models.Place
 import com.example.application.models.PlaceCategory
-import com.example.application.models.Itineraries
 import com.example.application.models.SavePathRequest
-import com.example.application.models.Steps
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -24,6 +22,8 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import kotlin.math.roundToInt
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.count
+import com.example.application.Itineraries
+import com.example.application.Steps
 
 object PathService {
     suspend fun generatePath(req: GeneratePathRequest): List<ItineraryResponse> = dbQuery {
@@ -74,7 +74,8 @@ object PathService {
             return@dbQuery listOf(ItineraryResponse(
                 name = "Erreur", hexColor = "#FF0000", totalPrice = 0, totalDuration = 0,
                 avgEffort = 0, mealIncluded = false,
-                errorMessage = "Le budget est trop bas pour inclure vos lieux favoris ($mandatoryCost€ requis)."
+                errorMessage = "Le budget est trop bas pour inclure vos lieux favoris ($mandatoryCost€ requis).",
+                startTimeMinutes = req.startTimeMinutes
             ))
         }
 
@@ -108,7 +109,7 @@ object PathService {
             }
 
             val coverImages = getTopImagesForPlaces(finalSteps)
-            val placesWithSchedules = recalculateSchedules(finalSteps)
+            val placesWithSchedules = recalculateSchedules(finalSteps, req.startTimeMinutes)
 
             return ItineraryResponse(
                 name = name,
@@ -120,7 +121,8 @@ object PathService {
                 steps = placesWithSchedules,
                 coverImages = coverImages,
                 likeCount = 0,
-                authorName = "IA Traveling" // 👈 Nom par défaut pour les itinéraires fraîchement générés
+                startTimeMinutes = req.startTimeMinutes, // 👈 Ajout ici
+                authorName = "IA Traveling"
             )
         }
 
@@ -139,21 +141,20 @@ object PathService {
             it[hexColor] = request.hexColor
             it[totalPrice] = request.totalPrice
             it[totalDuration] = request.totalDuration
-            it[avgEffort] = request.avgEffort
+            it[avgEffort] = request.avgEffort.toDouble()
             it[mealIncluded] = request.mealIncluded
             it[authorId] = request.userId
+            it[startTimeMinutes] = request.startTimeMinutes // 👈 On la sauvegarde en base !
         } get Itineraries.id
 
         val tokens = UserService.getFollowerTokens(request.userId)
 
-// Optionnel : récupère le pseudo de l'auteur dans la BDD s'il n'est pas dans la requête
         val authorProfile = UserService.getUserProfile(request.userId, null)
         val authorName = authorProfile?.username ?: "Un voyageur"
 
-// On lance la notification !
         NotificationService.notifyFollowersNewItinerary(
             authorName = authorName,
-            itineraryName = request.name, // Le nom de l'itinéraire
+            itineraryName = request.name,
             tokens = tokens
         )
 
@@ -187,6 +188,8 @@ object PathService {
 
     suspend fun getItinerariesByCategory(userId: String, category: String): List<ItineraryResponse> = dbQuery {
 
+        var sharedTimestamps = mapOf<Int, Long>()
+
         val likedItineraryIds = ItineraryLikes
             .select { ItineraryLikes.userId eq userId }
             .map { it[ItineraryLikes.itineraryId] }
@@ -212,7 +215,6 @@ object PathService {
                 if (followedIds.isEmpty()) return@dbQuery emptyList()
 
                 val likeCount = ItineraryLikes.userId.count()
-                // 👇 MODIFICATION SÉCURITÉ : leftJoin au lieu de innerJoin 👇
                 Itineraries.leftJoin(ItineraryLikes)
                     .slice(Itineraries.columns + likeCount)
                     .select { Itineraries.authorId inList followedIds }
@@ -224,12 +226,34 @@ object PathService {
             category.startsWith("AUTHOR_") -> {
                 val authorId = category.removePrefix("AUTHOR_")
                 val likeCount = ItineraryLikes.userId.count()
-                // 👇 MODIFICATION SÉCURITÉ : leftJoin au lieu de innerJoin 👇
                 Itineraries.leftJoin(ItineraryLikes)
                     .slice(Itineraries.columns + likeCount)
                     .select { Itineraries.authorId eq authorId }
                     .groupBy(Itineraries.id)
                     .orderBy(likeCount to SortOrder.DESC)
+            }
+
+            category.startsWith("GROUP_") -> {
+                val groupUuid = java.util.UUID.fromString(category.removePrefix("GROUP_"))
+
+                // 👇 NOUVEAU : On récupère l'ID ET le timestamp
+                val sharedData = com.example.application.GroupItineraries
+                    .select { com.example.application.GroupItineraries.groupId eq groupUuid }
+                    .associate {
+                        it[com.example.application.GroupItineraries.itineraryId] to it[com.example.application.GroupItineraries.sharedAt]
+                    }
+
+                sharedTimestamps = sharedData // On sauvegarde pour plus tard
+                val sharedItineraryIds = sharedData.keys.toList()
+
+                if (sharedItineraryIds.isEmpty()) return@dbQuery emptyList()
+
+                val likeCount = ItineraryLikes.userId.count()
+                Itineraries.leftJoin(ItineraryLikes)
+                    .slice(Itineraries.columns + likeCount)
+                    .select { Itineraries.id inList sharedItineraryIds }
+                    .groupBy(Itineraries.id)
+                    .orderBy(Itineraries.id to SortOrder.DESC)
             }
 
             else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
@@ -239,13 +263,12 @@ object PathService {
         if (rows.isEmpty()) return@dbQuery emptyList()
 
         val itineraryIds = rows.map { it[Itineraries.id] }
-        val authorIds = rows.map { it[Itineraries.authorId] }.distinct() // On récupère tous les auteurs uniques
+        val authorIds = rows.map { it[Itineraries.authorId] }.distinct()
 
         val allLikes = ItineraryLikes
             .select { ItineraryLikes.itineraryId inList itineraryIds }
             .toList()
 
-        // On récupère tous les pseudos des auteurs en UNE SEULE requête
         val authorNamesMap = mutableMapOf<String, String>()
         if (authorIds.isNotEmpty()) {
             val idsFormatted = authorIds.joinToString("','", "'", "'")
@@ -265,8 +288,6 @@ object PathService {
         rows.map { row ->
             val itineraryId = row[Itineraries.id]
             val authorId = row[Itineraries.authorId]
-
-            // On associe le pseudo trouvé (ou "Utilisateur" si introuvable)
             val currentAuthorName = authorNamesMap[authorId] ?: "Utilisateur"
 
             val sql = """
@@ -296,7 +317,11 @@ object PathService {
             }
 
             val coverImages = getTopImagesForPlaces(places)
-            val placesWithSchedules = recalculateSchedules(places)
+
+            // 👇 On récupère la vraie heure et on l'injecte 👇
+            val dbStartTime = row[Itineraries.startTimeMinutes]
+            val placesWithSchedules = recalculateSchedules(places, dbStartTime)
+
             val totalLikesForThisItinerary = allLikes.count { it[ItineraryLikes.itineraryId] == itineraryId }
 
             ItineraryResponse(
@@ -311,8 +336,10 @@ object PathService {
                 coverImages = coverImages,
                 isLiked = likedItineraryIds.contains(itineraryId),
                 likeCount = totalLikesForThisItinerary,
+                startTimeMinutes = dbStartTime, // 👈 Ajout ici
                 userId = authorId,
-                authorName = currentAuthorName
+                authorName = currentAuthorName,
+                sharedAt = sharedTimestamps[itineraryId] ?: 0L
             )
         }
     }
@@ -324,7 +351,6 @@ object PathService {
         val authorId = row[Itineraries.authorId]
         var currentAuthorName = "Utilisateur"
 
-        // 👇 Requête simple pour récupérer le pseudo d'un seul auteur 👇
         TransactionManager.current().exec("SELECT username FROM users WHERE firebase_id = '$authorId'") { rs ->
             if (rs.next()) {
                 currentAuthorName = rs.getString("username") ?: "Utilisateur"
@@ -357,7 +383,10 @@ object PathService {
             }
         }
 
-        val placesWithSchedules = recalculateSchedules(places)
+        // 👇 On récupère la vraie heure et on l'injecte 👇
+        val dbStartTime = row[Itineraries.startTimeMinutes]
+        val placesWithSchedules = recalculateSchedules(places, dbStartTime)
+
         val totalLikes = ItineraryLikes.select { ItineraryLikes.itineraryId eq itineraryId }.count()
 
         ItineraryResponse(
@@ -370,8 +399,9 @@ object PathService {
             mealIncluded = row[Itineraries.mealIncluded] ?: false,
             steps = placesWithSchedules,
             likeCount = totalLikes.toInt(),
+            startTimeMinutes = dbStartTime, // 👈 Ajout ici
             userId = authorId,
-            authorName = currentAuthorName // 👈 ON INJECTE LE VRAI PSEUDO ICI AUSSI !
+            authorName = currentAuthorName
         )
     }
 
@@ -459,6 +489,31 @@ object PathService {
             val arrival = formatTime(currentTimeMinutes)
             currentTimeMinutes += (place.duration * 60) + 30
             place.copy(arrivalTime = arrival)
+        }
+    }
+
+    suspend fun shareItineraryToGroup(itineraryId: Int, groupIdStr: String): Boolean = dbQuery {
+        try {
+            val groupUuid = java.util.UUID.fromString(groupIdStr)
+
+            // 1. On vérifie si l'itinéraire n'est pas DÉJÀ partagé dans ce groupe pour éviter les doublons
+            val exists = com.example.application.GroupItineraries.select {
+                (com.example.application.GroupItineraries.groupId eq groupUuid) and
+                        (com.example.application.GroupItineraries.itineraryId eq itineraryId)
+            }.count() > 0
+
+            if (!exists) {
+                // 2. On insère le lien
+                com.example.application.GroupItineraries.insert {
+                    it[groupId] = groupUuid
+                    it[this.itineraryId] = itineraryId
+                    it[sharedAt] = System.currentTimeMillis()
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 }

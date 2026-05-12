@@ -11,6 +11,8 @@ import com.example.application.databinding.FragmentCreatePathBinding
 import com.example.application.model.GeneratePathRequest
 import com.example.application.model.RetrofitInstance
 import com.google.android.material.chip.Chip
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
 import kotlinx.coroutines.launch
 
 class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
@@ -42,8 +44,29 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
 
         setupDynamicVisuals()
 
+        binding.etStartTime.setOnClickListener {
+            val picker = MaterialTimePicker.Builder()
+                .setTimeFormat(TimeFormat.CLOCK_24H)
+                .setHour(9)
+                .setMinute(30)
+                .setTitleText("Heure de départ")
+                .build()
+
+            picker.addOnPositiveButtonClickListener {
+                val pickedTime = String.format("%02d:%02d", picker.hour, picker.minute)
+                binding.etStartTime.setText(pickedTime)
+            }
+            picker.show(parentFragmentManager, "TIME_PICKER")
+        }
+
+        // --- PRÉ-REMPLISSAGE EN CAS DE REGÉNÉRATION ---
         draftRequest?.let { request ->
             binding.etBudget.setText(request.budgetMax.toString())
+
+            // 👇 NOUVEAU : On convertit les minutes en format texte HH:mm 👇
+            val h = (request.startTimeMinutes / 60) % 24
+            val m = request.startTimeMinutes % 60
+            binding.etStartTime.setText(String.format("%02d:%02d", h, m))
 
             binding.sliderEffort.value = request.effortLevel.toFloat()
             binding.sliderWeather.value = request.weatherTolerance.toFloat()
@@ -55,7 +78,7 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                 binding.radioMealNo.isChecked = true
             }
 
-            // Catégories (Chips) - 👇 MISE À JOUR DES IDs 👇
+            // Catégories (Chips)
             binding.chipCulture.isChecked = request.categories.contains("CULTURE")
             binding.chipDecouverte.isChecked = request.categories.contains("DECOUVERTE")
             binding.chipLoisirs.isChecked = request.categories.contains("LOISIRS")
@@ -72,24 +95,27 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
             }
             binding.chipGroupDuration.check(durationId)
 
-            // 3. On vide la boîte aux lettres pour que la prochaine ouverture soit vierge
+            // On vide la boîte aux lettres pour que la prochaine ouverture soit vierge
             draftRequest = null
         }
 
+        // --- GÉNÉRATION ---
         binding.btnGenerate.setOnClickListener {
             // On crée la liste des IDs sélectionnés (qui contient notre lieu imposé)
             val selectedIds = if (forcedPlaceId != null) listOf(forcedPlaceId!!) else emptyList()
-            // 1. On récupère et convertit l'heure tapée (ex: "09:30" -> 570)
+
             val timeString = binding.etStartTime.text.toString()
-            val timeParts = timeString.split(":")
-            var startMinutes = 9 * 60 // 9h00 par défaut
-            if (timeParts.size == 2) {
-                val h = timeParts[0].toIntOrNull() ?: 9
-                val m = timeParts[1].toIntOrNull() ?: 0
-                startMinutes = h * 60 + m
+            var startMinutes = 9 * 60 + 30 // 9h30 par défaut
+            if (timeString.isNotBlank()) {
+                val timeParts = timeString.split(":")
+                if (timeParts.size == 2) {
+                    val h = timeParts[0].toIntOrNull() ?: 9
+                    val m = timeParts[1].toIntOrNull() ?: 30
+                    startMinutes = h * 60 + m
+                }
             }
 
-            // 2. On crée la requête
+            // On crée la requête
             val request = GeneratePathRequest(
                 categories = getDbMappedActivities(),
                 selectedPlaceIds = selectedIds,
@@ -98,7 +124,7 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                 effortLevel = binding.sliderEffort.value.toInt(),
                 weatherTolerance = binding.sliderWeather.value.toInt(),
                 mealIncluded = binding.radioMealYes.isChecked,
-                startTimeMinutes = startMinutes // 👈 On envoie l'heure de départ
+                startTimeMinutes = startMinutes
             )
 
             lifecycleScope.launch {
@@ -130,13 +156,8 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         }
 
         binding.tvForcedPlaceName.setOnCloseIconClickListener {
-            // 1. On remet l'ID à null (technique)
             forcedPlaceId = null
-
-            // 2. On cache le bandeau (visuel)
             binding.llForcedPlaceIndicator.visibility = View.GONE
-
-            // 3. On informe l'utilisateur
             Toast.makeText(context, "Lieu retiré de l'itinéraire", Toast.LENGTH_SHORT).show()
         }
     }

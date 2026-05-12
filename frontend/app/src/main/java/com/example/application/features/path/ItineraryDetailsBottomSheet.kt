@@ -119,8 +119,7 @@ class ItineraryDetailsBottomSheet(
 
         try {
             binding.cvHeader.setCardBackgroundColor(Color.parseColor(itinerary.hexColor))
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) {}
 
         val isGenerated = (itinerary.id == null || itinerary.id == 0)
         val density = resources.displayMetrics.density
@@ -128,11 +127,8 @@ class ItineraryDetailsBottomSheet(
         if (isGenerated) {
             binding.topActionBar.visibility = View.GONE
             binding.bottomActionBar.visibility = View.VISIBLE
-            binding.btnShare.visibility = View.GONE
 
-            // 👇 On cache l'auteur car l'itinéraire n'a pas encore été sauvegardé
             binding.tvAuthorName.visibility = View.GONE
-
             binding.nestedScrollView.setPadding(0, 0, 0, (80 * density).toInt())
 
             binding.btnSave.setOnClickListener { showSaveDialog() }
@@ -142,7 +138,6 @@ class ItineraryDetailsBottomSheet(
             binding.topActionBar.visibility = View.VISIBLE
             binding.bottomActionBar.visibility = View.GONE
 
-            // 👇 On affiche le pseudo de l'auteur ! 👇
             binding.tvAuthorName.visibility = View.VISIBLE
             binding.tvAuthorName.text = "Itinéraire créé par @${itinerary.authorName}"
 
@@ -156,9 +151,8 @@ class ItineraryDetailsBottomSheet(
             binding.nestedScrollView.setPadding(0, 0, 0, (16 * density).toInt())
 
             val ivLike = binding.ivDetailLike
-            val tvLikeCount = binding.tvDetailLikeCount // 👈 Le nouveau TextView
+            val tvLikeCount = binding.tvDetailLikeCount
             val userId = Firebase.auth.currentUser?.uid ?: ""
-
             val ivDelete = binding.ivDetailDelete
 
             if (itinerary.userId == userId) {
@@ -166,10 +160,8 @@ class ItineraryDetailsBottomSheet(
                 ivDelete.setOnClickListener {
                     MaterialAlertDialogBuilder(requireContext())
                         .setTitle("Supprimer l'itinéraire")
-                        .setMessage("Êtes-vous sûr de vouloir supprimer définitivement ce parcours ? Cette action est irréversible.")
-                        .setPositiveButton("Supprimer") { _, _ ->
-                            deleteItinerary()
-                        }
+                        .setMessage("Êtes-vous sûr de vouloir supprimer définitivement ce parcours ?")
+                        .setPositiveButton("Supprimer") { _, _ -> deleteItinerary() }
                         .setNegativeButton("Annuler", null)
                         .show()
                 }
@@ -177,7 +169,11 @@ class ItineraryDetailsBottomSheet(
                 ivDelete.visibility = View.GONE
             }
 
-            // 👇 INITIALISATION DU COMPTEUR 👇
+            // 👇 GESTION DU CLIC SUR LE BOUTON PARTAGER 👇
+            binding.ivDetailShare.setOnClickListener {
+                shareToGroup()
+            }
+
             tvLikeCount.text = itinerary.likeCount.toString()
 
             if (itinerary.isLiked) {
@@ -192,23 +188,18 @@ class ItineraryDetailsBottomSheet(
                 if (itinerary.id != null) {
                     itinerary.isLiked = !itinerary.isLiked
                     if (itinerary.isLiked) {
-                        itinerary.likeCount++ // +1
+                        itinerary.likeCount++
                         ivLike.setImageResource(R.drawable.ic_heart_filled)
                         ivLike.setColorFilter(Color.RED)
                     } else {
-                        itinerary.likeCount-- // -1
+                        itinerary.likeCount--
                         ivLike.setImageResource(R.drawable.ic_heart_empty)
                         ivLike.setColorFilter(Color.GRAY)
                     }
 
-                    // Mise à jour visuelle instantanée
                     tvLikeCount.text = itinerary.likeCount.toString()
-
                     lifecycleScope.launch {
-                        try {
-                            RetrofitInstance.api.toggleLike(userId, itinerary.id!!)
-                        } catch (e: Exception) {
-                        }
+                        try { RetrofitInstance.api.toggleLike(userId, itinerary.id!!) } catch (e: Exception) {}
                     }
                 }
             }
@@ -250,6 +241,70 @@ class ItineraryDetailsBottomSheet(
         })
     }
 
+    // --- LOGIQUE DE PARTAGE DE GROUPE ---
+    private fun shareToGroup() {
+        val userId = Firebase.auth.currentUser?.uid ?: return
+
+        lifecycleScope.launch {
+            try {
+                // On récupère les groupes dont l'utilisateur est membre
+                val groups = RetrofitInstance.api.getMyGroups(userId)
+
+                if (groups.isEmpty()) {
+                    Toast.makeText(requireContext(), "Vous n'êtes membre d'aucun groupe.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val groupNames = groups.map { it.name }.toTypedArray()
+                val checkedItems = BooleanArray(groups.size) { false }
+
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Partager l'itinéraire")
+                    .setMultiChoiceItems(groupNames, checkedItems) { _, which, isChecked ->
+                        checkedItems[which] = isChecked
+                    }
+                    .setPositiveButton("Partager") { _, _ ->
+                        val selectedGroupIds = groups.filterIndexed { index, _ -> checkedItems[index] }
+                            .map { it.id }
+
+                        if (selectedGroupIds.isNotEmpty()) {
+                            performBulkShare(selectedGroupIds)
+                        } else {
+                            Toast.makeText(requireContext(), "Aucun groupe sélectionné", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNegativeButton("Annuler", null)
+                    .show()
+
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Erreur de récupération des groupes", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun performBulkShare(groupIds: List<String>) {
+        lifecycleScope.launch {
+            var successCount = 0
+            try {
+                for (groupId in groupIds) {
+                    val request = com.example.application.model.ShareItineraryRequest(itinerary.id!!, groupId)
+                    val response = RetrofitInstance.api.shareItineraryToGroup(request)
+                    if (response.isSuccessful) {
+                        successCount++
+                    }
+                }
+
+                if (successCount > 0) {
+                    Toast.makeText(requireContext(), "Partagé dans $successCount groupe(s) ! ✅", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "Erreur lors du partage.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Erreur serveur.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun deleteItinerary() {
         lifecycleScope.launch {
             try {
@@ -273,14 +328,6 @@ class ItineraryDetailsBottomSheet(
     private fun handleRegenerateAction() {
         val categories = itinerary.steps.map { it.category.name.uppercase() }.distinct()
 
-        val firstStepTime = itinerary.steps.firstOrNull()?.arrivalTime ?: "09:30"
-        val timeParts = firstStepTime.split(":")
-        val startMin = if (timeParts.size == 2) {
-            (timeParts[0].toIntOrNull() ?: 9) * 60 + (timeParts[1].toIntOrNull() ?: 30)
-        } else {
-            540
-        }
-
         val request = com.example.application.model.GeneratePathRequest(
             categories = categories,
             selectedPlaceIds = emptyList(),
@@ -289,7 +336,7 @@ class ItineraryDetailsBottomSheet(
             effortLevel = itinerary.avgEffort.toInt().coerceIn(1, 3),
             weatherTolerance = 2,
             mealIncluded = itinerary.mealIncluded,
-            startTimeMinutes = startMin
+            startTimeMinutes = itinerary.startTimeMinutes
         )
 
         CreatePathFragment.draftRequest = request
@@ -378,14 +425,17 @@ class ItineraryDetailsBottomSheet(
                     totalDuration = itinerary.totalDuration,
                     avgEffort = itinerary.avgEffort,
                     mealIncluded = itinerary.mealIncluded,
-                    placeIds = itinerary.steps.map { it.id }
+                    placeIds = itinerary.steps.map { it.id },
+                    startTimeMinutes = itinerary.startTimeMinutes
                 )
 
                 val response = RetrofitInstance.api.savePath(request)
 
                 if (response.isSuccessful) {
                     Toast.makeText(requireContext(), "Itinéraire sauvegardé avec succès !", Toast.LENGTH_SHORT).show()
+                    val navController = parentFragment?.findNavController()
                     dismiss()
+                    navController?.navigate(R.id.itineraryFragment)
                 } else {
                     Toast.makeText(requireContext(), "Erreur du serveur : ${response.code()}", Toast.LENGTH_LONG).show()
                 }
