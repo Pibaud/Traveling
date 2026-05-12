@@ -2,6 +2,7 @@ package com.example.application.routes
 
 import com.example.application.DatabaseFactory
 import com.example.application.Users
+import com.example.application.models.ReportRequest
 import com.example.application.models.UpdateProfileRequest
 import com.example.application.models.UserSyncRequest
 import com.example.application.services.UserService
@@ -74,5 +75,22 @@ fun Route.userRoutes() {
 
         if (updated) call.respond(HttpStatusCode.OK)
         else call.respond(HttpStatusCode.InternalServerError)
+    }
+
+    post("/users/{uid}/reports") {
+        val uid = call.parameters["uid"] ?: return@post call.respond(HttpStatusCode.BadRequest, "UID manquant")
+
+        try {
+            val request = call.receive<ReportRequest>() // Assure-toi que ReportRequest est bien importé/créé
+            val success = UserService.createReport(uid, request)
+
+            if (success) {
+                call.respond(HttpStatusCode.Created)
+            } else {
+                call.respond(HttpStatusCode.InternalServerError, "Erreur lors de la création du signalement")
+            }
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.BadRequest, "Format de requête invalide")
+        }
     }
 }

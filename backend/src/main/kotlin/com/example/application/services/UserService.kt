@@ -5,6 +5,7 @@ import com.example.application.Users
 import com.example.application.models.Itineraries
 import com.example.application.ItineraryLikes
 import com.example.application.UserFollows
+import com.example.application.models.ReportRequest
 import com.example.application.models.UserProfileResponse
 import com.example.application.models.UserSearchResponse
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -113,5 +114,21 @@ object UserService {
         // 2. Récupérer les tokens FCM de ces utilisateurs (en ignorant ceux qui sont nuls)
         Users.select { (Users.firebaseId inList followerIds) and Users.fcmToken.isNotNull() }
             .mapNotNull { it[Users.fcmToken] }
+    }
+
+    suspend fun createReport(uid: String, request: ReportRequest): Boolean = dbQuery {
+        try {
+            com.example.application.Reports.insert {
+                it[com.example.application.Reports.userId] = uid
+                it[com.example.application.Reports.description] = request.description
+                if (request.postId != null) {
+                    it[com.example.application.Reports.postId] = java.util.UUID.fromString(request.postId)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 }

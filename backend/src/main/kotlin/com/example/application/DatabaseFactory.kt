@@ -180,3 +180,16 @@ object GroupItineraries : Table("group_itineraries") {
 
     override val primaryKey = PrimaryKey(groupId, itineraryId)
 }
+
+object Reports : Table("reports") {
+    val id = integer("id").autoIncrement()
+    // Référence vers l'utilisateur qui signale
+    val userId = varchar("user_id", 128).references(Users.firebaseId, onDelete = ReferenceOption.CASCADE)
+    // Référence nullable vers le post (SET_NULL si le post est supprimé, on garde la trace du signalement)
+    val postId = uuid("post_id").references(Posts.id, onDelete = ReferenceOption.SET_NULL).nullable()
+
+    val description = text("description")
+    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now() }
+
+    override val primaryKey = PrimaryKey(id)
+}

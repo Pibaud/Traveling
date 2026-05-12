@@ -29,6 +29,11 @@ import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import java.util.Locale
 
 class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
 
@@ -65,6 +70,25 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
             takePictureLauncher.launch(null)
         } else {
             Toast.makeText(requireContext(), "Permission caméra refusée", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 4. Pour la Reconnaissance Vocale
+    private val speechRecognizerLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            // Récupère la liste des résultats vocaux
+            val results = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = results?.get(0)
+
+            if (!spokenText.isNullOrEmpty()) {
+                // On ajoute le texte reconnu à la suite de ce qui est déjà écrit
+                val currentText = binding.etDescription.text.toString()
+                val newText = if (currentText.isEmpty()) spokenText else "$currentText $spokenText"
+
+                binding.etDescription.setText(newText)
+                // Place le curseur à la fin du texte
+                binding.etDescription.setSelection(binding.etDescription.text?.length ?: 0)
+            }
         }
     }
 
@@ -110,6 +134,10 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
             selectedPlace = place
             Toast.makeText(requireContext(), "Lieu lié : ${place.name}", Toast.LENGTH_SHORT).show()
             validatePublishState()
+        }
+
+        binding.tilDescription.setEndIconOnClickListener {
+            startVoiceRecognition()
         }
 
         validatePublishState()
@@ -407,6 +435,23 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         }
 
         return downloadUrls
+    }
+
+    private fun startVoiceRecognition() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            // Configuration de l'intent pour de la dictée libre
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Décrivez votre post...")
+        }
+
+        try {
+            speechRecognizerLauncher.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            // Gère le cas (rare) où l'appareil n'a pas d'application Google/reconnaissance vocale installée
+            Toast.makeText(requireContext(), "Votre appareil ne supporte pas la saisie vocale", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onDestroyView() {
