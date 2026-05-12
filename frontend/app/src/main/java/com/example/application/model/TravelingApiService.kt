@@ -16,6 +16,7 @@ import com.example.application.model.ItineraryResponse
 import com.example.application.model.SavePathRequest
 import com.example.application.model.UpdateProfileRequest
 import com.example.application.model.UserProfileResponse
+import com.example.application.model.UserSearchResponse
 import retrofit2.Response
 import retrofit2.http.DELETE
 import retrofit2.http.PUT
@@ -65,8 +66,18 @@ interface TravelingApiService {
     @POST("share/like")
     suspend fun toggleLike(@Body request: LikeRequest): LikeResponse
 
+    @GET("share/posts/author/{uid}")
+    suspend fun getPostsByAuthor(
+        @Path("uid") uid: String,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Post>
+
     @POST("users/sync")
     suspend fun syncUser(@Body request: UserSyncRequest): Response<Unit>
+
+    @GET("users/search")
+    suspend fun searchUsers(@Query("q") query: String): List<UserSearchResponse>
 
     @POST("share/groups/create")
     suspend fun createGroup(@Body request: CreateGroupRequest): Response<Unit>

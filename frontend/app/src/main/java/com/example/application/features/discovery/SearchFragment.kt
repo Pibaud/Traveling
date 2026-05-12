@@ -38,6 +38,8 @@ import com.mapbox.mapboxsdk.style.expressions.Expression.stop
 import com.example.application.utils.setupPlaceAutocomplete
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.offline.OfflineManager
+import androidx.core.widget.addTextChangedListener
+import kotlinx.coroutines.isActive
 
 import com.example.application.features.path.PlaceDetailsBottomSheet
 import com.example.application.model.PlaceCategory
@@ -55,6 +57,9 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private val snapHelper = androidx.recyclerview.widget.PagerSnapHelper()
     private var currentCategory: String? = null
     var previousSize = 0
+    var previousAuthorSize = 0
+    private var currentAuthorId: String? = null
+    private lateinit var horizontalPostAdapter: PostHorizontalAdapter
     // Injection du ViewModel
     private val viewModel: SearchViewModel by viewModels {
         SearchViewModelFactory(RetrofitInstance.api)
@@ -98,6 +103,10 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                         binding.rvSearchGrid.adapter = staggeredPlaceAdapter
                     }
 
+                    if (binding.rvMapPlaces.adapter != horizontalMapAdapter) {
+                        binding.rvMapPlaces.adapter = horizontalMapAdapter
+                    }
+
                     val isAppending = places.size > previousSize  // C'est un ajout, pas un reset
 
                     staggeredPlaceAdapter.submitList(places, isAppending)
@@ -130,6 +139,54 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                 }
             }
         }
+
+        // Observation des posts par auteur
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.authorPosts.collect { posts ->
+                if (posts.isNotEmpty()) {
+                    if (binding.rvSearchGrid.adapter != staggeredPostAdapter) {
+                        binding.rvSearchGrid.adapter = staggeredPostAdapter
+                    }
+                    staggeredPostAdapter.submitList(posts)
+
+                    // 👇 1. On change l'adapter du carrousel !
+                    if (binding.rvMapPlaces.adapter != horizontalPostAdapter) {
+                        binding.rvMapPlaces.adapter = horizontalPostAdapter
+                    }
+
+                    // 👇 2. On passe LES POSTS au carrousel
+                    val isAppending = posts.size > previousAuthorSize
+                    horizontalPostAdapter.submitList(posts, isAppending)
+
+                    // 👇 3. Les marqueurs de la carte ont toujours besoin des lieux uniques
+                    val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
+                    updateMapMarkers(placesFromPosts)
+
+                    previousAuthorSize = posts.size
+
+                    if (binding.mapView.visibility == View.VISIBLE) {
+                        binding.rvMapPlaces.visibility = View.VISIBLE
+
+                        // Focus sur le PREMIER POST
+                        val firstPost = posts.firstOrNull()
+                        if (firstPost != null && (currentSelectedPlace == null || firstPost.place.id != currentSelectedPlace?.id)) {
+                            currentSelectedPlace = firstPost.place
+                            binding.rvMapPlaces.post {
+                                binding.rvMapPlaces.scrollToPosition(0)
+                                moveMapToPlace(firstPost.place)
+                            }
+                        }
+                    }
+                } else {
+                    previousAuthorSize = 0
+                    staggeredPostAdapter.submitList(emptyList())
+                    horizontalPostAdapter.submitList(emptyList()) // On vide le nouveau
+                    updateMapMarkers(emptyList())
+                    binding.rvMapPlaces.visibility = View.GONE
+                    currentSelectedPlace = null
+                }
+            }
+        }
     }
 
     private fun setupListeners() {
@@ -144,6 +201,14 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                 resetCategoryFilter()
             } else {
                 showCategorySelectionDialog()
+            }
+        }
+
+        binding.chipAuthor.setOnClickListener {
+            if (currentAuthorId != null) {
+                resetAuthorFilterUI()
+            } else {
+                showAuthorSelectionDialog()
             }
         }
 
@@ -261,13 +326,22 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         binding.btnToggleMap.setBackgroundColor(Color.WHITE)
         binding.btnToggleMap.setColorFilter(ContextCompat.getColor(requireContext(), R.color.primary_color))
 
-        currentSelectedPlace?.let { viewModel.fetchPostsForPlace(it.id) }
+        if (currentCategory == null && currentAuthorId == null) {
+            currentSelectedPlace?.let { viewModel.fetchPostsForPlace(it.id) }
+        }
     }
 
     private fun switchToMapView() {
         binding.rvSearchGrid.visibility = View.GONE
         binding.mapView.visibility = View.VISIBLE
-        if (horizontalMapAdapter.itemCount > 0) binding.rvMapPlaces.visibility = View.VISIBLE
+
+        // 1. On vérifie si l'adapter ACTUEL (Lieux ou Posts) contient des données
+        val currentAdapter = binding.rvMapPlaces.adapter
+        val hasItems = currentAdapter != null && currentAdapter.itemCount > 0
+
+        if (hasItems) {
+            binding.rvMapPlaces.visibility = View.VISIBLE
+        }
 
         // On allume Map (Fond Primaire, Icône Blanche)
         binding.btnToggleMap.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.primary_color))
@@ -280,9 +354,14 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         if (currentSelectedPlace != null) {
             // Si un lieu était déjà focus, on va dessus
             moveMapToPlace(currentSelectedPlace!!)
-        } else if (horizontalMapAdapter.itemCount > 0) {
-            // Si aucun lieu n'est focus, on prend le tout premier de la liste
-            val firstPlace = horizontalMapAdapter.getPlaceAt(0)
+        } else if (hasItems) {
+            // 2. Si aucun lieu n'est focus, on récupère le premier élément du BON adapter
+            val firstPlace = if (currentAdapter == horizontalPostAdapter) {
+                horizontalPostAdapter.getPostAt(0).place
+            } else {
+                horizontalMapAdapter.getPlaceAt(0)
+            }
+
             currentSelectedPlace = firstPlace
 
             // On s'assure que la liste est bien calée au début
@@ -319,6 +398,15 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             PlaceDetailsBottomSheet(clickedPlace).show(childFragmentManager, "PlaceDetails")
         }
 
+        // Adapter pour les POSTS (Carrousel horizontal sur la Map)
+        horizontalPostAdapter = PostHorizontalAdapter { clickedPost ->
+            // On utilise exactement la même clé et la même destination que ta grille
+            val bundle = Bundle().apply {
+                putString("scrollToPostId", clickedPost.id)
+            }
+            findNavController().navigate(R.id.feedFragment, bundle)
+        }
+
         // 2. Adapter pour les POSTS (Grille Staggered - Pinterest)
         staggeredPostAdapter = StaggeredPostAdapter { clickedPost ->
             val bundle = Bundle().apply { putString("scrollToPostId", clickedPost.id) }
@@ -344,20 +432,29 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         // Écouteur de scroll pour la Map
         binding.rvMapPlaces.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (dx > 0 && currentCategory != null) {
+                if (dx > 0) {
                     val layoutManager = recyclerView.layoutManager as LinearLayoutManager
                     if (layoutManager.findLastVisibleItemPosition() >= layoutManager.itemCount - 3) {
-                        loadCategoryPlaces(currentCategory!!)
+                        // 👇 On pagine selon le filtre actif
+                        if (currentCategory != null) loadCategoryPlaces(currentCategory!!)
+                        else if (currentAuthorId != null) viewModel.fetchPostsByAuthor(currentAuthorId!!)
                     }
                 }
             }
+
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     val centerView = snapHelper.findSnapView(recyclerView.layoutManager) ?: return
                     val position = recyclerView.layoutManager?.getPosition(centerView) ?: return
-                    val place = horizontalMapAdapter.getPlaceAt(position)
 
-                    currentSelectedPlace = place // On mémorise le lieu au centre
+                    // 👇 On récupère le "Place" depuis le bon adapter
+                    val place = if (binding.rvMapPlaces.adapter == horizontalPostAdapter) {
+                        horizontalPostAdapter.getPostAt(position).place
+                    } else {
+                        horizontalMapAdapter.getPlaceAt(position)
+                    }
+
+                    currentSelectedPlace = place
 
                     binding.mapView.getMapAsync { map ->
                         val cameraPosition = CameraPosition.Builder()
@@ -372,14 +469,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         binding.rvSearchGrid.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (dy > 0 && currentCategory != null) {
+                if (dy > 0) {
                     val layoutManager = recyclerView.layoutManager as StaggeredGridLayoutManager
                     val visibleItemCount = layoutManager.childCount
                     val totalItemCount = layoutManager.itemCount
                     val pastVisibleItems = layoutManager.findFirstVisibleItemPositions(null).maxOrNull() ?: 0
 
                     if ((visibleItemCount + pastVisibleItems) >= totalItemCount - 4) {
-                        loadCategoryPlaces(currentCategory!!)
+                        // 👇 Correction : on gère les deux types de filtres
+                        if (currentCategory != null) {
+                            loadCategoryPlaces(currentCategory!!)
+                        } else if (currentAuthorId != null) {
+                            viewModel.fetchPostsByAuthor(currentAuthorId!!)
+                        }
                     }
                 }
             }
@@ -459,6 +561,102 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
     private fun loadCategoryPlaces(category: String) {
         viewModel.fetchPlacesByCategory(category)
+    }
+
+    private fun showAuthorSelectionDialog() {
+        val context = requireContext()
+        val textInputLayout = com.google.android.material.textfield.TextInputLayout(context).apply {
+            hint = "Nom de l'utilisateur"
+            setPadding(40, 20, 40, 0)
+        }
+        val autoCompleteTextView = com.google.android.material.textfield.MaterialAutoCompleteTextView(context)
+        textInputLayout.addView(autoCompleteTextView)
+
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+            .setTitle("Filtrer par auteur")
+            .setView(textInputLayout)
+            .setNegativeButton("Annuler", null)
+            .show()
+
+        var searchJob: kotlinx.coroutines.Job? = null
+        var isSelecting = false
+
+        autoCompleteTextView.addTextChangedListener { text ->
+            if (isSelecting) return@addTextChangedListener
+
+            val query = text.toString()
+            if (query.length >= 2) {
+                searchJob?.cancel() // On annule la recherche précédente
+
+                searchJob = viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        val users = RetrofitInstance.api.searchUsers(query)
+
+                        // On vérifie si la coroutine est toujours active
+                        // (si l'utilisateur n'a pas fermé le dialog ou tapé une autre lettre)
+                        if (!isActive) return@launch
+
+                        val adapter = android.widget.ArrayAdapter(
+                            context,
+                            android.R.layout.simple_dropdown_item_1line,
+                            users.map { it.username }
+                        )
+                        autoCompleteTextView.setAdapter(adapter)
+
+                        // On affiche seulement si le champ a toujours le focus
+                        if (autoCompleteTextView.hasFocus()) {
+                            autoCompleteTextView.showDropDown()
+                        }
+
+                        autoCompleteTextView.setOnItemClickListener { _, _, position, _ ->
+                            isSelecting = true
+                            searchJob?.cancel() // Sécurité ultime
+
+                            val selectedUser = users[position]
+                            applyAuthorFilter(selectedUser.uid, selectedUser.username)
+
+                            autoCompleteTextView.dismissDropDown()
+                            dialog.dismiss()
+                        }
+                    } catch (e: Exception) {
+                        // Les erreurs d'annulation sont normales ici
+                    }
+                }
+            }
+        }
+    }
+
+    private fun applyAuthorFilter(uid: String, username: String) {
+        currentAuthorId = uid
+        // 1. Visuel
+        binding.chipAuthor.text = username
+        binding.chipAuthor.setTextColor(Color.WHITE)
+        binding.chipAuthor.chipBackgroundColor = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.primary_color))
+
+        // 2. Désactiver le filtre catégorie s'il existe (pour éviter les conflits)
+        resetCategoryFilter()
+
+        // 3. Charger les données
+        viewModel.fetchPostsByAuthor(uid)
+    }
+
+    private fun resetAuthorFilterUI() {
+        currentAuthorId = null
+        binding.chipAuthor.text = "Auteur"
+
+        // On remet la couleur de texte par défaut (OnSurface)
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        binding.chipAuthor.setTextColor(typedValue.data)
+
+        // On remet le fond gris
+        binding.chipAuthor.chipBackgroundColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#dedede"))
+
+        // On vide les données dans le ViewModel
+        viewModel.resetAuthorFilter()
+
+        // On s'assure qu'on est bien sur l'affichage classique des posts
+        binding.rvSearchGrid.adapter = staggeredPostAdapter
     }
 
     private fun drawableToBitmap(drawableId: Int): android.graphics.Bitmap? {
