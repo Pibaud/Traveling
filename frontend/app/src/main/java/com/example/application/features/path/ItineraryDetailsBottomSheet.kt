@@ -132,7 +132,7 @@ class ItineraryDetailsBottomSheet(
             binding.nestedScrollView.setPadding(0, 0, 0, (80 * density).toInt())
 
             binding.btnSave.setOnClickListener { showSaveDialog() }
-            binding.btnRegenerate.setOnClickListener { handleRegenerateAction() }
+            binding.btnRegenerate.setOnClickListener { handleRegenerateAction()}
 
         } else {
             binding.topActionBar.visibility = View.VISIBLE
@@ -330,7 +330,7 @@ class ItineraryDetailsBottomSheet(
 
         val request = com.example.application.model.GeneratePathRequest(
             categories = categories,
-            selectedPlaceIds = emptyList(),
+            selectedPlaceIds = emptyList(), // On le laisse vide ici car le fragment va le reconstruire
             budgetMax = itinerary.totalPrice,
             durationHours = itinerary.totalDuration,
             effortLevel = itinerary.avgEffort.toInt().coerceIn(1, 3),
@@ -339,7 +339,11 @@ class ItineraryDetailsBottomSheet(
             startTimeMinutes = itinerary.startTimeMinutes
         )
 
+        // 1. On envoie la configuration générale
         CreatePathFragment.draftRequest = request
+
+        // 👇 2. NOUVEAU : On envoie la liste complète des lieux ! 👇
+        CreatePathFragment.draftPlaces = itinerary.steps
 
         val navController = parentFragment?.findNavController()
         dismiss()

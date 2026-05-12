@@ -19,27 +19,41 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
 
     companion object {
         var draftRequest: GeneratePathRequest? = null
+        var draftPlaces: List<com.example.application.model.Place>? = null // 👈 NOUVEAU
     }
     private var _binding: FragmentCreatePathBinding? = null
     private val binding get() = _binding!!
 
-    private var forcedPlaceId: String? = null
+    private val currentForcedPlaces = mutableListOf<com.example.application.model.Place>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentCreatePathBinding.bind(view)
 
-        // --- RÉCUPÉRATION DU LIEU IMPOSÉ ---
+        // --- GESTION DES LIEUX IMPOSÉS (Création ou Regénération) ---
+        currentForcedPlaces.clear()
+        binding.chipGroupForcedPlaces.removeAllViews()
+
+        // Cas A : On vient de la fiche d'un seul lieu (PlaceDetailsBottomSheet)
         arguments?.getString("forcedPlaceId")?.let { id ->
-            forcedPlaceId = id
             val name = arguments?.getString("forcedPlaceName") ?: "Ce lieu"
+            currentForcedPlaces.add(com.example.application.model.Place(id = id, name = name))
+        }
 
-            // On rend visible un composant d'indication (à ajouter dans ton XML)
+        // Cas B : On vient d'une regénération d'itinéraire complet
+        draftPlaces?.let { places ->
+            currentForcedPlaces.addAll(places)
+            draftPlaces = null // On vide la boîte aux lettres
+        }
+
+        // On affiche les bulles
+        if (currentForcedPlaces.isNotEmpty()) {
             binding.llForcedPlaceIndicator.visibility = View.VISIBLE
-            binding.tvForcedPlaceName.text = name
-
-            // Optionnel : masquer la sélection d'activités si on veut simplifier
-            Toast.makeText(context, "Génération centrée sur $name", Toast.LENGTH_SHORT).show()
+            currentForcedPlaces.forEach { place ->
+                addPlaceChip(place)
+            }
+        } else {
+            binding.llForcedPlaceIndicator.visibility = View.GONE
         }
 
         setupDynamicVisuals()
@@ -102,7 +116,7 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
         // --- GÉNÉRATION ---
         binding.btnGenerate.setOnClickListener {
             // On crée la liste des IDs sélectionnés (qui contient notre lieu imposé)
-            val selectedIds = if (forcedPlaceId != null) listOf(forcedPlaceId!!) else emptyList()
+            val selectedIds = currentForcedPlaces.map { it.id }
 
             val timeString = binding.etStartTime.text.toString()
             var startMinutes = 9 * 60 + 30 // 9h30 par défaut
@@ -153,12 +167,6 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
                     Toast.makeText(requireContext(), "Erreur de connexion", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-
-        binding.tvForcedPlaceName.setOnCloseIconClickListener {
-            forcedPlaceId = null
-            binding.llForcedPlaceIndicator.visibility = View.GONE
-            Toast.makeText(context, "Lieu retiré de l'itinéraire", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -240,5 +248,21 @@ class CreatePathFragment : Fragment(R.layout.fragment_create_path) {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun addPlaceChip(place: com.example.application.model.Place) {
+        val chip = Chip(requireContext()).apply {
+            text = place.name
+            isCloseIconVisible = true
+            // Quand on clique sur la croix, on supprime le lieu !
+            setOnCloseIconClickListener {
+                binding.chipGroupForcedPlaces.removeView(this)
+                currentForcedPlaces.remove(place)
+                if (currentForcedPlaces.isEmpty()) {
+                    binding.llForcedPlaceIndicator.visibility = View.GONE
+                }
+            }
+        }
+        binding.chipGroupForcedPlaces.addView(chip)
     }
 }

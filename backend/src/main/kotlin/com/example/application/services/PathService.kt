@@ -52,19 +52,30 @@ object PathService {
             }
         }
 
+        // 2. On isole le(s) lieu(x) obligatoire(s)
         val mandatoryPlaces = allPlaces.filter { it.id in req.selectedPlaceIds }
 
-        val requestedCategories = req.categories.map {
-            when (it) {
-                "Restaurant" -> "RESTAURATION"
-                else -> it.uppercase()
-            }
+        // 👇 LA CORRECTION EST ICI 👇
+
+        // Si l'utilisateur n'a rien coché, on cherche dans les 3 catégories de base au lieu de tout bloquer
+        val baseCategories = if (req.categories.isEmpty()) {
+            listOf("CULTURE", "DECOUVERTE", "LOISIRS")
+        } else {
+            req.categories.map { it.uppercase() }
         }
 
+        // On ajoute intelligemment la restauration si la case était cochée !
+        val requestedCategories = if (req.mealIncluded) {
+            baseCategories + "RESTAURATION"
+        } else {
+            baseCategories
+        }
+
+        // 3. On filtre les candidats (ceux qu'on a le droit de rajouter)
         val candidatePlaces = allPlaces.filter {
             it.category.name in requestedCategories &&
                     it.effort <= req.effortLevel &&
-                    it.id !in req.selectedPlaceIds
+                    it.id !in req.selectedPlaceIds // On ne remet pas le lieu imposé !
         }
 
         val mandatoryCost = mandatoryPlaces.sumOf { it.price }
@@ -78,6 +89,8 @@ object PathService {
                 startTimeMinutes = req.startTimeMinutes
             ))
         }
+
+        // ... (La suite de ton code avec la fonction `buildVariant` reste identique) ...
 
         fun buildVariant(name: String, color: String, sortedCandidates: List<Place>): ItineraryResponse {
             val finalSteps = mutableListOf<Place>()

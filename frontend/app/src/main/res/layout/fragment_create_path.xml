@@ -28,25 +28,24 @@
             android:orientation="vertical"
             android:visibility="gone"
             android:padding="0dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="16dp"
             tools:visibility="visible">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Lieu inclus dans l'itinéraire :"
+                android:text="Lieux conservés dans l'itinéraire :"
                 android:textColor="#7A1C2A"
-                android:textStyle="bold" />
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/tvForcedPlaceName"
-                android:layout_width="wrap_content"
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupForcedPlaces"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:chipIconTint="#7A1C2A"
-                android:textColor="@android:color/black"
-                tools:text="Jardin des Plantes"
-                app:chipBackgroundColor="#F5E6E8"
-                app:closeIconVisible="true" />
+                app:singleSelection="false" />
+
         </LinearLayout>
 
         <TextView
