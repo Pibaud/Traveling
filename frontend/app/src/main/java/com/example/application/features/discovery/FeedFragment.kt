@@ -80,9 +80,20 @@ class FeedFragment : Fragment() {
 
     private fun setupRecyclerView() {
         adapter = DiscoveryAdapter(
-            onLikeClicked = { postId -> viewModel.toggleLikePost(postId) },
+            onLikeClicked = { postId ->
+                viewModel.toggleLikePost(postId)
+            },
             onPostLongClick = { postId ->
                 ReportBottomSheet(postId).show(childFragmentManager, "ReportPost")
+            },
+            onSimilarClick = { postId ->
+                // 👈 C'EST ICI QUE TU PLACES LA NAVIGATION
+                val bundle = Bundle().apply {
+                    putString("similarityPostId", postId)
+                }
+                findNavController().navigate(R.id.action_feed_to_search, bundle)
+
+                // (Note : si tu utilises les SafeArgs, utilise la syntaxe FeedFragmentDirections comme tu l'avais écrit)
             }
         )
         val layoutManager = LinearLayoutManager(requireContext())

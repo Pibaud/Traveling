@@ -1,3 +1,4 @@
+import com.example.application.model.AnalysisResult
 import com.example.application.model.CreateGroupRequest
 import com.example.application.model.GeneratePathRequest
 import com.example.application.model.Group
@@ -189,6 +190,16 @@ interface TravelingApiService {
         @Path("uid") uid: String,
         @Body request: ReportRequest
     ): Response<Unit>
+    @POST("share/analyze-image")
+    suspend fun analyzeImage(
+        @Body request: Map<String, String>
+    ): Response<AnalysisResult>
+
+    @GET("share/posts/{id}/similar")
+    suspend fun getSimilarPosts(
+        @Path("id") postId: String,
+        @Query("userId") userId: String? = null
+    ): List<Post>
 }
 
 

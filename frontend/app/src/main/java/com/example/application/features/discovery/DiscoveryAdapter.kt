@@ -16,7 +16,8 @@ import com.google.android.material.tabs.TabLayoutMediator
 
 class DiscoveryAdapter(
     private val onLikeClicked: (String) -> Unit,
-    private val onPostLongClick: (String) -> Unit
+    private val onPostLongClick: (String) -> Unit,
+    private val onSimilarClick: (String) -> Unit
 ) : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>() {
 
     private var posts: List<Post> = emptyList()
@@ -29,7 +30,7 @@ class DiscoveryAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewHolder {
         val binding = ItemPlaceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         // NOUVEAU 2 : On passe cette fonction au ViewHolder quand on le crée
-        return PostViewHolder(binding, onLikeClicked)
+        return PostViewHolder(binding, onLikeClicked, onSimilarClick)
     }
 
     override fun onBindViewHolder(holder: PostViewHolder, position: Int) {
@@ -49,7 +50,8 @@ class DiscoveryAdapter(
     // NOUVEAU 3 : Le ViewHolder accepte cette fonction dans son constructeur
     inner class PostViewHolder(
         val binding: ItemPlaceBinding, // Garde-le en 'val' (interne à la classe)
-        private val onLikeClicked: (String) -> Unit
+        private val onLikeClicked: (String) -> Unit,
+        private val onSimilarClick: (String) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
         private var isLiked = false
@@ -165,6 +167,10 @@ class DiscoveryAdapter(
                     val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri))
                     view.context.startActivity(fallbackIntent)
                 }
+            }
+
+            binding.ivSimilar.setOnClickListener {
+                onSimilarClick(post.id)
             }
         }
 

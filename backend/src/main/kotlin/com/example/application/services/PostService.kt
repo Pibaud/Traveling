@@ -28,7 +28,8 @@ object PostService {
         tags: List<String>,
         imageUrls: List<String>,
         authorId: String = "anonymous",
-        groupIds: List<String> = emptyList()
+        groupIds: List<String> = emptyList(),
+        embedding: List<Float>? = null
     ): Boolean = dbQuery {
         try {
             // 1. Insertion du Post
@@ -39,6 +40,13 @@ object PostService {
                 it[Posts.imageUrls] = imageUrls.joinToString(",") // On joint les URLs par une virgule
                 it[Posts.authorId] = authorId
             } get Posts.id
+
+            if (embedding != null && embedding.isNotEmpty()) {
+                val vectorString = embedding.joinToString(prefix = "[", postfix = "]", separator = ",")
+                org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
+                    "UPDATE posts SET embedding = '$vectorString'::vector WHERE id = '${insertedPostId}'"
+                )
+            }
 
             // 2. Gestion des Tags
             tags.forEach { tagName ->
@@ -429,6 +437,95 @@ object PostService {
                         isLikedByMe = rs.getBoolean("is_liked_by_me")
                     )
                 )
+            }
+        }
+        results
+    }
+
+    suspend fun getSimilarPosts(postIdStr: String, currentUserId: String? = null): List<Post> = dbQuery {
+        val postUuid = java.util.UUID.fromString(postIdStr)
+
+        // La requête magique de similarité cosinus (<=>)
+        val sql = """
+            SELECT 
+                p.id as post_id, 
+                p.author_id, 
+                p.description, 
+                p.image_urls, 
+                -- 👇 ON CALCULE LA DISTANCE EXACTE (0 = clone, 1 = opposé) 👇
+                (p.embedding <=> (SELECT embedding FROM posts WHERE id = ?)) as distance,
+                (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
+                EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked_by_me,
+                CAST(EXTRACT(EPOCH FROM p.created_at) * 1000 AS BIGINT) as timestamp,
+                u.username as author_name,
+                u.avatar_url as author_avatar,
+                pl.id as place_id, 
+                pl.name as place_name, 
+                pl.category as place_category, 
+                ST_Y(pl.location::geometry) as place_lat, 
+                ST_X(pl.location::geometry) as place_lng,
+                (
+                    SELECT STRING_AGG(t.name, ',') 
+                    FROM post_tags pt 
+                    JOIN tags t ON pt.tag_id = t.id 
+                    WHERE pt.post_id = p.id
+                ) as tags_list
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.firebase_id
+            LEFT JOIN places pl ON p.place_id = pl.id
+            WHERE p.id != ? 
+              AND p.embedding IS NOT NULL 
+              AND p.is_public = true
+              -- 👇 LE FAMEUX SEUIL DE TOLÉRANCE (0.4 est un bon début pour Gemini) 👇
+              AND (p.embedding <=> (SELECT embedding FROM posts WHERE id = ?)) < 0.5
+            ORDER BY distance ASC
+            LIMIT 15
+        """.trimIndent()
+
+        // ⚠️ Attention, nous avons maintenant 4 points d'interrogation (?) dans le SQL,
+        // il faut donc passer 4 arguments dans l'ordre exact :
+        val args = listOf(
+            org.jetbrains.exposed.sql.UUIDColumnType() to postUuid,                 // 1. Pour calculer la distance
+            org.jetbrains.exposed.sql.VarCharColumnType() to (currentUserId ?: ""), // 2. Pour le is_liked
+            org.jetbrains.exposed.sql.UUIDColumnType() to postUuid,                 // 3. Pour exclure le post actuel (id != ?)
+            org.jetbrains.exposed.sql.UUIDColumnType() to postUuid                  // 4. Pour le seuil (< 0.4)
+        )
+
+        val results = mutableListOf<Post>()
+
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(sql, args = args) { rs ->
+            while (rs.next()) {
+                val imageUrlsStr = rs.getString("image_urls") ?: ""
+                val tagsStr = rs.getString("tags_list") ?: ""
+
+                val place = Place(
+                    id = rs.getString("place_id") ?: "",
+                    name = rs.getString("place_name") ?: "Lieu inconnu",
+                    latitude = rs.getDouble("place_lat"),
+                    longitude = rs.getDouble("place_lng"),
+                    category = try {
+                        PlaceCategory.valueOf(rs.getString("place_category")?.uppercase() ?: "CULTURE")
+                    } catch (e: Exception) { PlaceCategory.CULTURE }
+                )
+
+                results.add(
+                    Post(
+                        id = rs.getString("post_id"),
+                        authorId = rs.getString("author_id") ?: "",
+                        authorName = rs.getString("author_name") ?: "Utilisateur inconnu",
+                        authorAvatarUrl = rs.getString("author_avatar") ?: "",
+                        description = rs.getString("description") ?: "",
+                        imageUrls = if (imageUrlsStr.isNotBlank()) imageUrlsStr.split(",") else emptyList(),
+                        likesCount = rs.getInt("likes_count"),
+                        commentsCount = 0, // A ajuster si tu as une table commentaires
+                        tags = if (tagsStr.isNotBlank()) tagsStr.split(",") else emptyList(),
+                        timestamp = rs.getLong("timestamp"),
+                        place = place,
+                        isLikedByMe = rs.getBoolean("is_liked_by_me")
+                    )
+                )
+
+                println("Post ${rs.getString("post_id")} - Distance: ${rs.getDouble("distance")}")
             }
         }
         results

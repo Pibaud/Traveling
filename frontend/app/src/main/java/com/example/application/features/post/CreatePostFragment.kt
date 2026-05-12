@@ -41,6 +41,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
     private val binding get() = _binding!!
     private lateinit var photoAdapter: PhotoAdapter
     private var selectedPlace: Place? = null
+    private var generatedEmbedding: List<Float>? = null
 
     private val selectedTags = mutableSetOf<String>()
     private val selectedGroupIds = mutableSetOf<String>()
@@ -115,6 +116,7 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         setupListeners()
         setupDragAndDrop()
         setupTagsLogic()
+        setupAIFeatures()
         loadMyGroupsForSelection()
 
         // --- AJOUTE CETTE LIGNE ---
@@ -388,7 +390,8 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
                     isPublic = isPublic,
                     groupIds = selectedGroupIds.toList(),
                     imageUrls = uploadedImageUrls,
-                    authorId = userId
+                    authorId = userId,
+                    embedding = generatedEmbedding
                 )
 
                 // 4. Envoi au Backend Ktor
@@ -451,6 +454,56 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
         } catch (e: ActivityNotFoundException) {
             // Gère le cas (rare) où l'appareil n'a pas d'application Google/reconnaissance vocale installée
             Toast.makeText(requireContext(), "Votre appareil ne supporte pas la saisie vocale", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun setupAIFeatures() {
+        binding.btnSuggestTags.setOnClickListener {
+            if (photosList.isEmpty()) {
+                Toast.makeText(requireContext(), "Ajoutez d'abord une photo !", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    // On bloque le bouton
+                    binding.btnSuggestTags.isEnabled = false
+                    binding.btnSuggestTags.text = "Analyse de l'image..."
+
+                    // 1. Upload temporaire de la première photo (basé sur ta logique)
+                    val firstPhotoUri = Uri.parse(photosList.first())
+                    val storageRef = Firebase.storage.reference
+                    val fileName = "temp_ai_${UUID.randomUUID()}.jpg"
+                    val imageRef = storageRef.child("posts/$fileName")
+
+                    imageRef.putFile(firstPhotoUri).await()
+                    val downloadUrl = imageRef.downloadUrl.await().toString()
+
+                    // 2. Appel au backend Ktor
+                    val response = RetrofitInstance.api.analyzeImage(mapOf("imageUrl" to downloadUrl))
+
+                    if (response.isSuccessful && response.body() != null) {
+                        val aiResult = response.body()!!
+
+                        // 3. Sauvegarde du vecteur mathématique pour la publication
+                        generatedEmbedding = aiResult.embedding
+
+                        // 4. Ajout visuel des tags avec ta fonction existante
+                        aiResult.tags.forEach { tag ->
+                            // On vérifie si le tag n'est pas déjà présent pour éviter les doublons
+                            if (!selectedTags.contains(tag)) {
+                                addTagChip(tag)
+                            }
+                        }
+                        Toast.makeText(requireContext(), "Tags générés par IA !", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "Erreur IA : ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    binding.btnSuggestTags.isEnabled = true
+                    binding.btnSuggestTags.text = "✨ Suggérer des tags par IA"
+                }
+            }
         }
     }
 

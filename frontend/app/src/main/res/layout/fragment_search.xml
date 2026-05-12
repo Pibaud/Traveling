@@ -53,7 +53,7 @@
             android:padding="12dp"
             android:layout_marginEnd="8dp"
             android:src="@drawable/round_chevron_left_48"
-            app:tint="#660022"
+            app:tint="@color/primary_color"
             android:background="?attr/selectableItemBackgroundBorderless" />
 
         <com.google.android.material.textfield.TextInputLayout
@@ -155,4 +155,14 @@
                 app:tint="@color/primary_color" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:indeterminateTint="@color/primary_color"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

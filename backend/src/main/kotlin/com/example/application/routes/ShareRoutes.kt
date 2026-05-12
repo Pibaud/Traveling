@@ -5,6 +5,7 @@ import com.example.application.models.CreatePostRequest
 import com.example.application.models.LikeRequest
 import com.example.application.models.JoinGroupRequest
 import com.example.application.models.NotificationToggleRequest
+import com.example.application.services.AIService
 import com.example.application.services.GroupService
 import com.example.application.services.PlaceService
 import com.example.application.services.PostService
@@ -89,7 +90,8 @@ fun Route.shareRoutes() {
                     tags = request.tags,
                     imageUrls = request.imageUrls,
                     authorId = request.authorId,
-                    groupIds = request.groupIds
+                    groupIds = request.groupIds,
+                    embedding = request.embedding
                 )
 
                 if (success) {
@@ -251,6 +253,37 @@ fun Route.shareRoutes() {
             val userId = call.request.queryParameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
             val places = PlaceService.getLikedPlaces(userId)
             call.respond(HttpStatusCode.OK, places)
+        }
+
+        post("/analyze-image") {
+            try {
+                // On attend un simple JSON : { "imageUrl": "https://firebase..." }
+                val request = call.receive<Map<String, String>>()
+                val imageUrl = request["imageUrl"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+
+                val aiResult = AIService.analyzeAndEmbedImage(imageUrl)
+
+                if (aiResult != null) {
+                    call.respond(HttpStatusCode.OK, aiResult)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "Erreur lors de l'analyse IA")
+                }
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, "Format invalide")
+            }
+        }
+
+        get("/posts/{id}/similar") {
+            try {
+                val postId = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, "ID manquant")
+                val userId = call.request.queryParameters["userId"]
+
+                val similarPosts = PostService.getSimilarPosts(postId, userId)
+                call.respond(HttpStatusCode.OK, similarPosts)
+            } catch (e: Exception) {
+                application.log.error("Erreur lors de la recherche par similarité", e)
+                call.respond(HttpStatusCode.InternalServerError, "Erreur serveur")
+            }
         }
     }
 }
