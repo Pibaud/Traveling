@@ -1,3 +1,4 @@
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.application.model.Place
@@ -37,6 +38,48 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
                 _placePosts.value = result
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    private val _categoryPlaces = MutableStateFlow<List<Place>>(emptyList())
+    val categoryPlaces: StateFlow<List<Place>> = _categoryPlaces
+
+    private var currentCategory: String? = null
+    private var currentOffset = 0
+    private val pageSize = 20
+    private var isLoading = false
+
+    fun fetchPlacesByCategory(category: String) {
+        if (category != currentCategory) {
+            currentCategory = category
+            currentOffset = 0
+            _categoryPlaces.value = emptyList()
+            Log.d("PAGINATION", "🔄 Nouvelle catégorie '$category' → reset offset")
+        }
+
+        if (isLoading) {
+            Log.d("PAGINATION", "⏳ Déjà en chargement, appel ignoré")
+            return
+        }
+
+        viewModelScope.launch {
+            isLoading = true
+            Log.d("PAGINATION", "📤 Requête envoyée → category=$category, offset=$currentOffset, limit=$pageSize")
+            try {
+                val result = apiService.getPlacesByCategory(
+                    category = category,
+                    limit = pageSize,
+                    offset = currentOffset
+                )
+                Log.d("PAGINATION", "📥 Réponse reçue → ${result.size} lieux | IDs: ${result.map { it.id }}")
+                _categoryPlaces.value = _categoryPlaces.value + result
+                currentOffset += result.size
+                Log.d("PAGINATION", "✅ Nouvel offset = $currentOffset | Total en mémoire = ${_categoryPlaces.value.size}")
+            } catch (e: Exception) {
+                Log.e("PAGINATION", "❌ Erreur réseau : ${e.message}")
+            } finally {
+                isLoading = false
             }
         }
     }

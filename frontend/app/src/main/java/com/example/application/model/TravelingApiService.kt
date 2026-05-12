@@ -43,6 +43,13 @@ interface TravelingApiService {
         @Query("userId") userId: String? = null
     ): List<Post>
 
+    @GET("share/places/category/{category}")
+    suspend fun getPlacesByCategory(
+        @Path("category") category: String,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Place>
+
     @POST("share/publish")
     suspend fun publishPost(
         @Body request: CreatePostRequest // <-- Remplacement total du Multipart

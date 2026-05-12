@@ -56,6 +56,20 @@ fun Route.shareRoutes() {
             }
         }
 
+        get("/places/category/{category}") {
+            val category = call.parameters["category"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+
+            application.log.info("📥 [PAGINATION] category=$category | limit=$limit | offset=$offset")
+
+            val places = PlaceService.getPlacesByCategory(category, limit, offset)
+
+            application.log.info("📤 [PAGINATION] Renvoi de ${places.size} lieux | IDs: ${places.map { it.id }}")
+
+            call.respond(HttpStatusCode.OK, places)
+        }
+
         get("/tags/suggest") {
             val q = call.request.queryParameters["q"] ?: ""
             if (q.length < 2) return@get call.respond(emptyList<String>())

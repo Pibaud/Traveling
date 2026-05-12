@@ -23,6 +23,17 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMapPlaces"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:layout_marginBottom="90dp"
+            android:orientation="horizontal"
+            android:clipToPadding="false"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone" />
     </FrameLayout>
 
     <LinearLayout
@@ -83,19 +94,27 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 style="@style/Widget.MaterialComponents.Chip.Action"
-                android:text="Ce mois-ci" />
+                android:text="Date" />
 
             <com.google.android.material.chip.Chip
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 style="@style/Widget.MaterialComponents.Chip.Action"
-                android:text="&lt; 5km" />
+                android:text="Autour de :" />
 
             <com.google.android.material.chip.Chip
+                android:id="@+id/chipCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 style="@style/Widget.MaterialComponents.Chip.Action"
-                android:text="Musée" />
+                android:text="Type de lieu" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipAuthor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.Chip.Action"
+                android:text="Auteur" />
 
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
