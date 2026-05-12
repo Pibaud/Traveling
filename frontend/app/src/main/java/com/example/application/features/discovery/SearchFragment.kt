@@ -190,6 +190,9 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     }
 
     private fun setupListeners() {
+        binding.btnBack.setOnClickListener {
+            findNavController().navigateUp()
+        }
         // Gestion du basculement entre Grille et Map
         binding.btnToggleGrid.setOnClickListener { switchToGridView() }
         binding.btnToggleMap.setOnClickListener { switchToMapView() }

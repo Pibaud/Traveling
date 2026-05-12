@@ -1,5 +1,6 @@
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +15,8 @@ import com.example.application.model.Post
 import com.google.android.material.tabs.TabLayoutMediator
 
 class DiscoveryAdapter(
-    private val onLikeClicked: (String) -> Unit
+    private val onLikeClicked: (String) -> Unit,
+    private val onPostLongClick: (String) -> Unit
 ) : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>() {
 
     private var posts: List<Post> = emptyList()
@@ -31,14 +33,22 @@ class DiscoveryAdapter(
     }
 
     override fun onBindViewHolder(holder: PostViewHolder, position: Int) {
-        holder.bind(posts[position])
+        val post = posts[position]
+        holder.bind(post)
+
+        Log.d("DEBUG_CLICK", "onBindViewHolder pour le post : ${post.id}")
+
+        holder.setLongClickListener(post.id) { postId ->
+            Log.d("DEBUG_CLICK", "Callback onPostLongClick déclenché dans l'Adapter pour : $postId")
+            onPostLongClick(postId)
+        }
     }
 
     override fun getItemCount(): Int = posts.size
 
     // NOUVEAU 3 : Le ViewHolder accepte cette fonction dans son constructeur
-    class PostViewHolder(
-        private val binding: ItemPlaceBinding,
+    inner class PostViewHolder(
+        val binding: ItemPlaceBinding, // Garde-le en 'val' (interne à la classe)
         private val onLikeClicked: (String) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
@@ -174,6 +184,27 @@ class DiscoveryAdapter(
                 .withEndAction {
                     binding.ivLike.animate().scaleX(1.0f).scaleY(1.0f).setDuration(100)
                 }
+        }
+
+        fun setLongClickListener(postId: String, onLongClick: (String) -> Unit) {
+            // On définit une action commune
+            val triggerAction = View.OnLongClickListener {
+                Log.d("DEBUG_CLICK", "ACTION DÉCLENCHÉE pour : $postId")
+                onLongClick(postId)
+                true // Crucial : on consomme l'événement
+            }
+
+            // 1. On l'applique sur la RACINE (ConstraintLayout de item_place.xml)
+            binding.root.setOnLongClickListener(triggerAction)
+
+            // 2. On l'applique sur le ViewPager2 interne
+            // Note : On utilise .getChildAt(0) car c'est lui qui gère le tactile du carrousel
+            binding.vpPlacePhotos.getChildAt(0).setOnLongClickListener(triggerAction)
+
+            // 3. Spécifiquement pour les zones de texte qui peuvent intercepter le clic
+            binding.tvDescription.setOnLongClickListener(triggerAction)
+            binding.tvLocationName.setOnLongClickListener(triggerAction)
+            binding.clBottomInfo.setOnLongClickListener(triggerAction)
         }
     }
 }

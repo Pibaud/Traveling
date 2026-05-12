@@ -13,6 +13,7 @@ import retrofit2.http.POST
 import retrofit2.http.Query
 import com.example.application.model.Post
 import com.example.application.model.ItineraryResponse
+import com.example.application.model.ReportRequest
 import com.example.application.model.SavePathRequest
 import com.example.application.model.ShareItineraryRequest
 import com.example.application.model.UpdateProfileRequest
@@ -168,6 +169,12 @@ interface TravelingApiService {
         @Query("userId") userId: String
     ): retrofit2.Response<List<ItineraryResponse>>
 
+    // Dans TravelingApiService
+    @POST("users/{uid}/reports")
+    suspend fun submitReport(
+        @Path("uid") uid: String,
+        @Body request: ReportRequest
+    ): Response<Unit>
 }
 
 

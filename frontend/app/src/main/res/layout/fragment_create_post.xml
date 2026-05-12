@@ -167,7 +167,7 @@
                 android:layout_marginBottom="8dp" />
 
             <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+                android:id="@+id/tilDescription" android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:boxBackgroundMode="outline"
                 app:boxCornerRadiusTopStart="12dp"
@@ -175,7 +175,8 @@
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:counterEnabled="true"
-                app:counterMaxLength="300">
+                app:counterMaxLength="300"
+                app:endIconMode="custom" app:endIconDrawable="@android:drawable/ic_btn_speak_now" app:endIconContentDescription="Saisie vocale">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etDescription"

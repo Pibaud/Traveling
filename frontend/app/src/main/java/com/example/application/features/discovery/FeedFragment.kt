@@ -17,6 +17,7 @@ import com.example.application.utils.GuestUpsellBottomSheet
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.*
+import com.example.application.features.report.ReportBottomSheet
 
 class FeedFragment : Fragment() {
 
@@ -78,9 +79,12 @@ class FeedFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = DiscoveryAdapter { postId ->
-            viewModel.toggleLikePost(postId)
-        }
+        adapter = DiscoveryAdapter(
+            onLikeClicked = { postId -> viewModel.toggleLikePost(postId) },
+            onPostLongClick = { postId ->
+                ReportBottomSheet(postId).show(childFragmentManager, "ReportPost")
+            }
+        )
         val layoutManager = LinearLayoutManager(requireContext())
 
         binding.rvDiscovery.layoutManager = layoutManager

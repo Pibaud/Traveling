@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.hardware.Sensor
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -19,9 +20,16 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.example.application.utils.GuestUpsellBottomSheet // N'oublie pas l'import
 import androidx.navigation.ui.NavigationUI
+import com.example.application.features.report.ReportBottomSheet
+import com.example.application.utils.ShakeDetector
+import android.hardware.SensorManager
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: MainActivityBinding
+
+    private var sensorManager: android.hardware.SensorManager? = null
+    private var accelerometer: android.hardware.Sensor? = null
+    private lateinit var shakeDetector: com.example.application.utils.ShakeDetector
 
     // État du menu FAB
     private var isFabMenuOpen = false
@@ -92,6 +100,18 @@ class MainActivity : AppCompatActivity() {
 
         // --- 3. CONFIGURATION DU MENU FAB ---
         setupFabMenu()
+
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        shakeDetector = ShakeDetector {
+            // On vérifie que la BottomSheet n'est pas déjà affichée pour éviter les doublons
+            val existingFragment = supportFragmentManager.findFragmentByTag("ReportGlobal")
+            if (existingFragment == null) {
+                // Affichage de la BottomSheet SANS id_post (signalement global)
+                ReportBottomSheet(postId = null).show(supportFragmentManager, "ReportGlobal")
+            }
+        }
     }
 
     private fun setupFabMenu() {
@@ -203,5 +223,17 @@ class MainActivity : AppCompatActivity() {
                 binding.tvLabelItinerary.visibility = View.GONE
             }.start()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        accelerometer?.let {
+            sensorManager?.registerListener(shakeDetector, it, SensorManager.SENSOR_DELAY_UI)
+        }
+    }
+
+    override fun onPause() {
+        sensorManager?.unregisterListener(shakeDetector)
+        super.onPause()
     }
 }
