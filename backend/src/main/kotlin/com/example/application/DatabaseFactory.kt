@@ -124,6 +124,7 @@ object Itineraries : Table("itinerary") {
     val avgEffort = double("avg_effort")
     val mealIncluded = bool("meal_included")
     val authorId = varchar("author_id", 128)
+    val startTimeMinutes = integer("start_time_minutes").default(570)
 
     override val primaryKey = PrimaryKey(id)
 }

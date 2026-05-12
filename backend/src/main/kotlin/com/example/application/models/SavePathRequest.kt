@@ -9,7 +9,8 @@ data class SavePathRequest(
     val hexColor: String,
     val totalPrice: Int,
     val totalDuration: Int,
-    val avgEffort: Double,
+    val avgEffort: Int,
     val mealIncluded: Boolean,
-    val placeIds: List<String> // La liste des lieux qui composent ce parcours
+    val placeIds: List<String>, // La liste des lieux qui composent ce parcours
+    val startTimeMinutes: Int
 )

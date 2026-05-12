@@ -273,14 +273,7 @@ class ItineraryDetailsBottomSheet(
     private fun handleRegenerateAction() {
         val categories = itinerary.steps.map { it.category.name.uppercase() }.distinct()
 
-        val firstStepTime = itinerary.steps.firstOrNull()?.arrivalTime ?: "09:30"
-        val timeParts = firstStepTime.split(":")
-        val startMin = if (timeParts.size == 2) {
-            (timeParts[0].toIntOrNull() ?: 9) * 60 + (timeParts[1].toIntOrNull() ?: 30)
-        } else {
-            540
-        }
-
+        // 1. On crée la requête en utilisant directement l'heure de départ de l'itinéraire !
         val request = com.example.application.model.GeneratePathRequest(
             categories = categories,
             selectedPlaceIds = emptyList(),
@@ -289,11 +282,13 @@ class ItineraryDetailsBottomSheet(
             effortLevel = itinerary.avgEffort.toInt().coerceIn(1, 3),
             weatherTolerance = 2,
             mealIncluded = itinerary.mealIncluded,
-            startTimeMinutes = startMin
+            startTimeMinutes = itinerary.startTimeMinutes // 👈 On passe la vraie valeur ici
         )
 
+        // 2. On passe la requête à notre fragment de création
         CreatePathFragment.draftRequest = request
 
+        // 3. Navigation
         val navController = parentFragment?.findNavController()
         dismiss()
 
@@ -370,6 +365,7 @@ class ItineraryDetailsBottomSheet(
 
         lifecycleScope.launch {
             try {
+                // On crée la requête complète
                 val request = com.example.application.model.SavePathRequest(
                     userId = userId,
                     name = name,
@@ -378,14 +374,24 @@ class ItineraryDetailsBottomSheet(
                     totalDuration = itinerary.totalDuration,
                     avgEffort = itinerary.avgEffort,
                     mealIncluded = itinerary.mealIncluded,
-                    placeIds = itinerary.steps.map { it.id }
+                    placeIds = itinerary.steps.map { it.id },
+                    startTimeMinutes = itinerary.startTimeMinutes // 👈 On envoie l'heure de départ générée !
                 )
 
                 val response = RetrofitInstance.api.savePath(request)
 
                 if (response.isSuccessful) {
                     Toast.makeText(requireContext(), "Itinéraire sauvegardé avec succès !", Toast.LENGTH_SHORT).show()
-                    dismiss()
+
+                    // 👇 LA REDIRECTION MAGIQUE EST ICI 👇
+                    // On récupère le Controller avant de fermer la sheet
+                    val navController = parentFragment?.findNavController()
+
+                    dismiss() // Ferme la BottomSheet
+
+                    // On navigue vers la page de liste des itinéraires (Son ID dans nav_graph.xml est itineraryFragment)
+                    navController?.navigate(R.id.itineraryFragment)
+
                 } else {
                     Toast.makeText(requireContext(), "Erreur du serveur : ${response.code()}", Toast.LENGTH_LONG).show()
                 }
