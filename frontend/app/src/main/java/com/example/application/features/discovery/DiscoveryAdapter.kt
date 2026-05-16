@@ -156,15 +156,20 @@ class DiscoveryAdapter(
                 error(R.drawable.round_account_circle_24)
             }
 
-            // --- GOOGLE MAPS ---
+            // --- GOOGLE MAPS (ITINÉRAIRE) ---
             binding.ivLocation.setOnClickListener { view ->
-                val geoUri = "geo:0,0?q=${post.place.latitude},${post.place.longitude}(${Uri.encode(post.place.name)})"
-                val mapIntent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri))
+                // Utilisation de google.navigation pour lancer le calcul d'itinéraire
+                val navUri = Uri.parse("google.navigation:q=${post.place.latitude},${post.place.longitude}")
+                val mapIntent = Intent(Intent.ACTION_VIEW, navUri)
                 mapIntent.setPackage("com.google.android.apps.maps")
+
                 try {
                     view.context.startActivity(mapIntent)
                 } catch (e: Exception) {
-                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri))
+                    // Fallback ultra-robuste : ouvre l'itinéraire sur le navigateur web
+                    // si l'application Google Maps n'est pas installée sur le téléphone
+                    val webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${post.place.latitude},${post.place.longitude}")
+                    val fallbackIntent = Intent(Intent.ACTION_VIEW, webUri)
                     view.context.startActivity(fallbackIntent)
                 }
             }
@@ -224,7 +229,9 @@ class PhotoCarouselAdapter(private val imageUrls: List<String>) :
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            scaleType = ImageView.ScaleType.CENTER_CROP
+            scaleType = ImageView.ScaleType.FIT_CENTER
+
+            setBackgroundColor(android.graphics.Color.BLACK)
         }
         return PhotoViewHolder(imageView)
     }
