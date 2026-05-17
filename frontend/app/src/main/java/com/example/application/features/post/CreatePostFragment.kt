@@ -138,6 +138,33 @@ class CreatePostFragment : Fragment(R.layout.fragment_create_post) {
             validatePublishState()
         }
 
+        val passedPlaceId = arguments?.getString("placeId")
+        val passedPlaceName = arguments?.getString("placeName")
+
+        if (passedPlaceId != null && passedPlaceName != null) {
+            val passedPlaceLat = arguments?.getDouble("placeLat") ?: 0.0
+            val passedPlaceLng = arguments?.getDouble("placeLng") ?: 0.0
+            val passedPlaceCategory = arguments?.getString("placeCategory") ?: "CULTURE"
+
+            // 1. On crée l'objet Place en mémoire pour que la validation passe
+            selectedPlace = Place(
+                id = passedPlaceId,
+                name = passedPlaceName,
+                latitude = passedPlaceLat,
+                longitude = passedPlaceLng,
+                category = try {
+                    PlaceCategory.valueOf(passedPlaceCategory.uppercase())
+                } catch(e: Exception) {
+                    PlaceCategory.CULTURE
+                }
+            )
+
+            // 2. On affiche le nom du lieu dans le champ texte
+            // Le 'false' est super important : ça empêche le menu déroulant de s'ouvrir tout seul !
+            binding.etLocation.setText(passedPlaceName, false)
+            binding.etLocation.clearFocus()
+        }
+
         binding.tilDescription.setEndIconOnClickListener {
             startVoiceRecognition()
         }
