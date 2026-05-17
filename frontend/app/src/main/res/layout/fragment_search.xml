@@ -14,8 +14,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="#F8F8F8"
-            android:paddingTop="140dp"
             android:clipToPadding="false"
+            android:paddingTop="140dp"
             android:visibility="visible" />
 
         <com.mapbox.mapboxsdk.maps.MapView

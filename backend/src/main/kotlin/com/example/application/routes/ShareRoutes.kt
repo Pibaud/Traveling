@@ -285,5 +285,21 @@ fun Route.shareRoutes() {
                 call.respond(HttpStatusCode.InternalServerError, "Erreur serveur")
             }
         }
+
+        get("/posts/date-range") {
+            val startMillis = call.request.queryParameters["start"]?.toLongOrNull() ?: return@get call.respond(HttpStatusCode.BadRequest, "Start date manquante")
+            val endMillis = call.request.queryParameters["end"]?.toLongOrNull() ?: return@get call.respond(HttpStatusCode.BadRequest, "End date manquante")
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+            val currentUserId = call.request.queryParameters["userId"]
+
+            try {
+                val posts = PostService.getPostsByDateRange(startMillis, endMillis, limit, offset, currentUserId)
+                call.respond(HttpStatusCode.OK, posts)
+            } catch (e: Exception) {
+                application.log.error("Erreur filtre date", e)
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
     }
 }

@@ -200,6 +200,15 @@ interface TravelingApiService {
         @Path("id") postId: String,
         @Query("userId") userId: String? = null
     ): List<Post>
+
+    @GET("share/posts/date-range")
+    suspend fun getPostsByDateRange(
+        @Query("start") startMillis: Long,
+        @Query("end") endMillis: Long,
+        @Query("userId") userId: String? = null,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Post>
 }
 
 

@@ -57,6 +57,8 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private val snapHelper = androidx.recyclerview.widget.PagerSnapHelper()
     private var currentCategory: String? = null
     var previousSize = 0
+    private var currentStartDate: Long? = null
+    private var currentEndDate: Long? = null
     var previousAuthorSize = 0
     private var currentAuthorId: String? = null
     private lateinit var horizontalPostAdapter: PostHorizontalAdapter
@@ -201,6 +203,51 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             }
         }
 
+        // Observation des posts par date
+        // Observation des posts par date
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.datePosts.collect { posts ->
+                if (posts.isNotEmpty()) {
+                    if (binding.rvSearchGrid.adapter != staggeredPostAdapter) {
+                        binding.rvSearchGrid.adapter = staggeredPostAdapter
+                    }
+                    staggeredPostAdapter.submitList(posts)
+
+                    if (binding.rvMapPlaces.adapter != horizontalPostAdapter) {
+                        binding.rvMapPlaces.adapter = horizontalPostAdapter
+                    }
+                    horizontalPostAdapter.submitList(posts, false)
+
+                    val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
+                    updateMapMarkers(placesFromPosts)
+
+                    if (binding.mapView.visibility == View.VISIBLE) {
+                        binding.rvMapPlaces.visibility = View.VISIBLE
+                        val firstPost = posts.firstOrNull()
+                        if (firstPost != null && (currentSelectedPlace == null || firstPost.place.id != currentSelectedPlace?.id)) {
+                            currentSelectedPlace = firstPost.place
+                            binding.rvMapPlaces.post {
+                                binding.rvMapPlaces.scrollToPosition(0)
+                                moveMapToPlace(firstPost.place)
+                            }
+                        }
+                    }
+                } else {
+                    // 👈 UN SIMPLE 'else' ICI POUR TOUT NETTOYER QUAND LE FILTRE SE RESET
+                    staggeredPostAdapter.submitList(emptyList())
+                    horizontalPostAdapter.submitList(emptyList())
+                    updateMapMarkers(emptyList())
+                    binding.rvMapPlaces.visibility = View.GONE
+                    currentSelectedPlace = null
+
+                    // 💡 On affiche le Toast uniquement si c'est une vraie recherche vide
+                    if (currentStartDate != null) {
+                        Toast.makeText(requireContext(), "Aucun post trouvé pour ces dates", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.searchResults.collect { posts ->
                 if (posts.isNotEmpty()) {
@@ -246,6 +293,14 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                 resetCategoryFilter()
             } else {
                 showCategorySelectionDialog()
+            }
+        }
+
+        binding.chipDate.setOnClickListener {
+            if (currentStartDate != null) {
+                resetDateFilterUI() // Toggle : si c'est déjà actif, on désactive
+            } else {
+                showDateRangePicker() // Sinon, on ouvre le calendrier
             }
         }
 
@@ -719,6 +774,54 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         drawable.setBounds(0, 0, canvas.width, canvas.height)
         drawable.draw(canvas)
         return bitmap
+    }
+
+    private fun showDateRangePicker() {
+        val dateRangePicker = com.google.android.material.datepicker.MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Sélectionnez une période")
+            .build()
+
+        dateRangePicker.addOnPositiveButtonClickListener { selection ->
+            // selection est une Pair<Long, Long> contenant le début et la fin
+            val startMillis = selection.first
+            val endMillis = selection.second
+
+            applyDateFilter(startMillis, endMillis)
+        }
+
+        dateRangePicker.show(childFragmentManager, "DATE_PICKER")
+    }
+
+    private fun applyDateFilter(startMillis: Long, endMillis: Long) {
+        currentStartDate = startMillis
+        currentEndDate = endMillis
+
+        // 1. Visuel du Chip
+        binding.chipDate.text = "Période sélectionnée"
+        binding.chipDate.setTextColor(Color.WHITE)
+        binding.chipDate.chipBackgroundColor = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.primary_color))
+
+        // 2. Désactiver les autres filtres pour éviter les conflits
+        if (currentCategory != null) resetCategoryFilter()
+        if (currentAuthorId != null) resetAuthorFilterUI()
+
+        // 3. Charger les données depuis le backend
+        viewModel.fetchPostsByDateRange(startMillis, endMillis)
+    }
+
+    private fun resetDateFilterUI() {
+        currentStartDate = null
+        currentEndDate = null
+        binding.chipDate.text = "Date"
+
+        // On remet le texte et le fond par défaut
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        binding.chipDate.setTextColor(typedValue.data)
+        binding.chipDate.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
+
+        viewModel.resetDateFilter()
+        binding.rvSearchGrid.adapter = staggeredPostAdapter
     }
 
     override fun onStart() { super.onStart(); binding.mapView.onStart() }

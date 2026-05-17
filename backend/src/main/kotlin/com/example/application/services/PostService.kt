@@ -238,7 +238,7 @@ object PostService {
                 p.image_urls, 
                 (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
                 EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked_by_me,
-                p.created_at as timestamp,
+                EXTRACT(EPOCH FROM p.created_at) * 1000 as timestamp,
                 u.username as author_name,
                 pl.id as place_id, 
                 pl.name as place_name, 
@@ -526,6 +526,89 @@ object PostService {
                 )
 
                 println("Post ${rs.getString("post_id")} - Distance: ${rs.getDouble("distance")}")
+            }
+        }
+        results
+    }
+
+    suspend fun getPostsByDateRange(
+        startMillis: Long,
+        endMillis: Long,
+        limit: Int = 20,
+        offset: Int = 0,
+        currentUserId: String? = null
+    ): List<Post> = dbQuery {
+        val sql = """
+            SELECT 
+                p.id as post_id, 
+                p.author_id, 
+                p.description, 
+                p.image_urls, 
+                (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
+                EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked_by_me,
+                CAST(EXTRACT(EPOCH FROM p.created_at) * 1000 AS BIGINT) as timestamp,
+                u.username as author_name,
+                pl.id as place_id, 
+                pl.name as place_name, 
+                pl.category as place_category, 
+                ST_Y(pl.location::geometry) as place_lat, 
+                ST_X(pl.location::geometry) as place_lng,
+                (
+                    SELECT STRING_AGG(t.name, ',') 
+                    FROM post_tags pt 
+                    JOIN tags t ON pt.tag_id = t.id 
+                    WHERE pt.post_id = p.id
+                ) as tags_list
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.firebase_id
+            LEFT JOIN places pl ON p.place_id = pl.id
+            WHERE p.is_public = true 
+              AND p.created_at >= to_timestamp(? / 1000.0) 
+              AND p.created_at <= to_timestamp(? / 1000.0)
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?
+        """.trimIndent()
+
+        val args = listOf(
+            org.jetbrains.exposed.sql.VarCharColumnType() to (currentUserId ?: ""),
+            org.jetbrains.exposed.sql.LongColumnType() to startMillis,
+            // On ajoute 23h59m59s (86399999 ms) à la date de fin pour inclure toute la journée !
+            org.jetbrains.exposed.sql.LongColumnType() to (endMillis + 86399999L),
+            org.jetbrains.exposed.sql.IntegerColumnType() to limit,
+            org.jetbrains.exposed.sql.IntegerColumnType() to offset
+        )
+
+        val results = mutableListOf<Post>()
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(sql, args = args) { rs ->
+            while (rs.next()) {
+                // ... (C'est exactement la même boucle while que dans tes autres fonctions, copie-colle la création du Place et du Post ici)
+                val imageUrlsStr = rs.getString("image_urls") ?: ""
+                val tagsStr = rs.getString("tags_list") ?: ""
+
+                val place = Place(
+                    id = rs.getString("place_id") ?: "",
+                    name = rs.getString("place_name") ?: "",
+                    latitude = rs.getDouble("place_lat"),
+                    longitude = rs.getDouble("place_lng"),
+                    category = try { PlaceCategory.valueOf(rs.getString("place_category")?.uppercase() ?: "CULTURE") } catch (e: Exception) { PlaceCategory.CULTURE }
+                )
+
+                results.add(
+                    Post(
+                        id = rs.getString("post_id"),
+                        authorId = rs.getString("author_id") ?: "",
+                        authorName = rs.getString("author_name") ?: "Anonyme",
+                        authorAvatarUrl = "",
+                        description = rs.getString("description") ?: "",
+                        imageUrls = if (imageUrlsStr.isNotBlank()) imageUrlsStr.split(",") else emptyList(),
+                        likesCount = rs.getInt("likes_count"),
+                        commentsCount = 0,
+                        tags = if (tagsStr.isNotBlank()) tagsStr.split(",") else emptyList(),
+                        timestamp = rs.getLong("timestamp"),
+                        place = place,
+                        isLikedByMe = rs.getBoolean("is_liked_by_me")
+                    )
+                )
             }
         }
         results

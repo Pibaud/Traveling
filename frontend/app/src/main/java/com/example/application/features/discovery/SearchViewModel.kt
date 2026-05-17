@@ -143,4 +143,26 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
             }
         }
     }
+
+    private val _datePosts = MutableStateFlow<List<Post>>(emptyList())
+    val datePosts: StateFlow<List<Post>> = _datePosts.asStateFlow()
+
+    fun fetchPostsByDateRange(startMillis: Long, endMillis: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val currentUserId = Firebase.auth.currentUser?.uid
+                val posts = RetrofitInstance.api.getPostsByDateRange(startMillis, endMillis, currentUserId)
+                _datePosts.value = posts
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun resetDateFilter() {
+        _datePosts.value = emptyList()
+    }
 }
