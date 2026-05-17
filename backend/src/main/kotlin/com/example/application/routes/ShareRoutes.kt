@@ -79,19 +79,42 @@ fun Route.shareRoutes() {
 
         post("/publish") {
             try {
-                // Ktor transforme automatiquement le JSON reçu en CreatePostRequest !
+                // Ktor transforme automatiquement le JSON reçu en CreatePostRequest
                 val request = call.receive<CreatePostRequest>()
 
-                // Tu passes toutes les infos à ton service de base de données
+                // 1. On prépare les données (au cas où l'UI les a déjà fournies via le bouton IA)
+                var finalEmbedding = request.embedding
+                val finalTags = request.tags.toMutableList()
+
+                // 2. Si l'embedding est null, on le génère AUTOMATIQUEMENT à la volée
+                if (finalEmbedding == null && request.imageUrls.isNotEmpty()) {
+                    // On analyse la première image envoyée
+                    val aiResult = AIService.analyzeAndEmbedImage(request.imageUrls.first())
+
+                    if (aiResult != null) {
+                        finalEmbedding = aiResult.embedding
+
+                        // Petit bonus : on enrichit les tags de l'utilisateur avec ceux de l'IA
+                        // tout en évitant les doublons
+                        aiResult.tags.forEach { tag ->
+                            val cleanTag = tag.lowercase().trim()
+                            if (!finalTags.contains(cleanTag)) {
+                                finalTags.add(cleanTag)
+                            }
+                        }
+                    }
+                }
+
+                // 3. Tu passes toutes les infos à ton service de base de données
                 val success = PostService.createNewPost(
                     description = request.description,
                     placeId = request.placeId,
                     isPublic = request.isPublic,
-                    tags = request.tags,
+                    tags = finalTags, // On passe la liste fusionnée
                     imageUrls = request.imageUrls,
                     authorId = request.authorId,
                     groupIds = request.groupIds,
-                    embedding = request.embedding
+                    embedding = finalEmbedding // On passe l'embedding (de l'UI ou généré à l'instant)
                 )
 
                 if (success) {
