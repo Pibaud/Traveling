@@ -105,7 +105,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         // 3. Observation des données du ViewModel
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.places.collect { places ->
-                updateMapMarkers(places)
+                updateMapMarkers(places, isSearchResult = false) // 👈 false ici
             }
         }
 
@@ -130,7 +130,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
                     staggeredPlaceAdapter.submitList(places, isAppending)
                     horizontalMapAdapter.submitList(places, isAppending)
-                    updateMapMarkers(places)
+                    updateMapMarkers(places, isSearchResult = true)
                     previousSize = places.size  // On mémorise la taille actuelle
 
                     if (binding.mapView.visibility == View.VISIBLE) {
@@ -179,7 +179,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
                     // 👇 3. Les marqueurs de la carte ont toujours besoin des lieux uniques
                     val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
-                    updateMapMarkers(placesFromPosts)
+                    updateMapMarkers(placesFromPosts, isSearchResult = true)
 
                     previousAuthorSize = posts.size
 
@@ -200,7 +200,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     previousAuthorSize = 0
                     staggeredPostAdapter.submitList(emptyList())
                     horizontalPostAdapter.submitList(emptyList()) // On vide le nouveau
-                    updateMapMarkers(emptyList())
+                    updateMapMarkers(emptyList(), isSearchResult = true)
                     binding.rvMapPlaces.visibility = View.GONE
                     currentSelectedPlace = null
                 }
@@ -223,7 +223,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     horizontalPostAdapter.submitList(posts, false)
 
                     val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
-                    updateMapMarkers(placesFromPosts)
+                    updateMapMarkers(placesFromPosts, isSearchResult = true)
 
                     if (binding.mapView.visibility == View.VISIBLE) {
                         binding.rvMapPlaces.visibility = View.VISIBLE
@@ -240,7 +240,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     // 👈 UN SIMPLE 'else' ICI POUR TOUT NETTOYER QUAND LE FILTRE SE RESET
                     staggeredPostAdapter.submitList(emptyList())
                     horizontalPostAdapter.submitList(emptyList())
-                    updateMapMarkers(emptyList())
+                    updateMapMarkers(emptyList(), isSearchResult = true)
                     binding.rvMapPlaces.visibility = View.GONE
                     currentSelectedPlace = null
 
@@ -267,7 +267,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     horizontalPostAdapter.submitList(posts, false)
 
                     val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
-                    updateMapMarkers(placesFromPosts)
+                    updateMapMarkers(placesFromPosts, isSearchResult = true)
 
                     if (binding.mapView.visibility == View.VISIBLE) {
                         binding.rvMapPlaces.visibility = View.VISIBLE
@@ -284,7 +284,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     // Nettoyage complet
                     staggeredPostAdapter.submitList(emptyList())
                     horizontalPostAdapter.submitList(emptyList())
-                    updateMapMarkers(emptyList())
+                    updateMapMarkers(emptyList(), isSearchResult = true)
                     binding.rvMapPlaces.visibility = View.GONE
                     currentSelectedPlace = null
 
@@ -313,7 +313,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
                     // On met à jour les points sur la carte
                     val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
-                    updateMapMarkers(placesFromPosts)
+                    updateMapMarkers(placesFromPosts, isSearchResult = true)
                 }
             }
         }
@@ -393,15 +393,79 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         currentCategory = null
         binding.chipCategory.text = "Type de lieu"
 
-        // 1. On remet la couleur de texte par défaut (souvent noir ou gris foncé)
         val typedValue = android.util.TypedValue()
         requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
         binding.chipCategory.setTextColor(typedValue.data)
-
-        // 2. MAGIE : En mettant "null", le Chip récupère automatiquement le style de ton XML !
         binding.chipCategory.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
 
         binding.rvSearchGrid.adapter = staggeredPostAdapter
+        binding.rvMapPlaces.visibility = View.GONE
+
+        // 👇 LE CORRECTIF EST ICI : On purge la carte et la mémoire
+        currentSelectedPlace = null
+        staggeredPlaceAdapter.submitList(emptyList())
+        horizontalMapAdapter.submitList(emptyList())
+        updateMapMarkers(emptyList(), isSearchResult = true)
+    }
+
+    private fun resetAuthorFilterUI() {
+        currentAuthorId = null
+        binding.chipAuthor.text = "Auteur"
+
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        binding.chipAuthor.setTextColor(typedValue.data)
+        binding.chipAuthor.chipBackgroundColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#dedede"))
+
+        viewModel.resetAuthorFilter()
+        binding.rvSearchGrid.adapter = staggeredPostAdapter
+
+        // 👇 LE CORRECTIF EST ICI : On purge la carte et la mémoire
+        currentSelectedPlace = null
+        staggeredPostAdapter.submitList(emptyList())
+        horizontalPostAdapter.submitList(emptyList())
+        updateMapMarkers(emptyList(), isSearchResult = true)
+        binding.rvMapPlaces.visibility = View.GONE
+    }
+
+    private fun resetDateFilterUI() {
+        currentStartDate = null
+        currentEndDate = null
+        binding.chipDate.text = "Date"
+
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        binding.chipDate.setTextColor(typedValue.data)
+        binding.chipDate.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
+
+        viewModel.resetDateFilter()
+        binding.rvSearchGrid.adapter = staggeredPostAdapter
+
+        // 👇 LE CORRECTIF EST ICI : On purge la carte et la mémoire
+        currentSelectedPlace = null
+        staggeredPostAdapter.submitList(emptyList())
+        horizontalPostAdapter.submitList(emptyList())
+        updateMapMarkers(emptyList(), isSearchResult = true)
+        binding.rvMapPlaces.visibility = View.GONE
+    }
+
+    private fun resetNearbyFilterUI() {
+        currentNearbyPlace = null
+        binding.chipNearby.text = "À proximité"
+
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        binding.chipNearby.setTextColor(typedValue.data)
+        binding.chipNearby.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
+
+        viewModel.resetNearbyFilter()
+        binding.rvSearchGrid.adapter = staggeredPostAdapter
+
+        // 👇 LE CORRECTIF EST ICI : On purge la carte et la mémoire
+        currentSelectedPlace = null
+        staggeredPostAdapter.submitList(emptyList())
+        horizontalPostAdapter.submitList(emptyList())
+        updateMapMarkers(emptyList(), isSearchResult = true)
         binding.rvMapPlaces.visibility = View.GONE
     }
 
@@ -451,20 +515,30 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
     }
 
-    private fun updateMapMarkers(places: List<Place>) {
+    private fun updateMapMarkers(places: List<Place>, isSearchResult: Boolean = false) {
         val features = places.map { place ->
             val feature = Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude))
             feature.addStringProperty("id", place.id)
             feature.addStringProperty("name", place.name)
             feature.addStringProperty("category", place.category.name)
+
+            // 👇 Indispensable pour recréer le lieu lors du clic
+            feature.addNumberProperty("lat", place.latitude)
+            feature.addNumberProperty("lng", place.longitude)
+
+            // On garde la logique de l'ancienne icône pour la couche de fond
             feature.addStringProperty("icon", "icon-${place.category.name.lowercase()}")
             feature
         }
 
         val featureCollection = FeatureCollection.fromFeatures(features)
+
+        // On cible la bonne source selon le contexte
+        val targetSource = if (isSearchResult) "SEARCH_SOURCE" else "PLACES_SOURCE"
+
         binding.mapView.getMapAsync { map ->
             map.style?.let { style ->
-                val source = style.getSourceAs<GeoJsonSource>("PLACES_SOURCE")
+                val source = style.getSourceAs<GeoJsonSource>(targetSource)
                 source?.setGeoJson(featureCollection)
             }
         }
@@ -656,14 +730,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         binding.mapView.getMapAsync { map ->
             map.setStyle(styleUrl) { style ->
+                // 1. On charge toutes tes images
                 drawableToBitmap(R.drawable.round_culture_24)?.let { style.addImage("icon-culture", it, true) }
                 drawableToBitmap(R.drawable.round_restaurant_24)?.let { style.addImage("icon-restauration", it, true) }
                 drawableToBitmap(R.drawable.round_loisirs_24)?.let { style.addImage("icon-loisirs", it, true) }
                 drawableToBitmap(R.drawable.round_decouverte_24)?.let { style.addImage("icon-decouverte", it, true) }
+                style.addImage("round-pin", createRoundPinBitmap(), false) // 👈 Notre pin personnalisé
 
+                // 2. On crée DEUX sources indépendantes
                 style.addSource(GeoJsonSource("PLACES_SOURCE", FeatureCollection.fromFeatures(emptyList())))
+                style.addSource(GeoJsonSource("SEARCH_SOURCE", FeatureCollection.fromFeatures(emptyList())))
 
-                val symbolLayer = SymbolLayer("PLACES_LAYER", "PLACES_SOURCE")
+                // 3. Couche de FOND (Les icônes de base avec tes couleurs)
+                val backgroundLayer = SymbolLayer("PLACES_LAYER", "PLACES_SOURCE")
                     .withProperties(
                         iconImage(get("icon")),
                         iconAllowOverlap(false),
@@ -680,24 +759,40 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                             )
                         )
                     )
-                style.addLayer(symbolLayer)
+                style.addLayer(backgroundLayer)
+
+                // 4. Couche de RECHERCHE (Par dessus, avec ton pin primaire)
+                val searchLayer = SymbolLayer("SEARCH_LAYER", "SEARCH_SOURCE")
+                    .withProperties(
+                        iconImage("round-pin"),
+                        iconAllowOverlap(true), // On veut toujours les voir !
+                        iconIgnorePlacement(true)
+                    )
+                style.addLayerAbove(searchLayer, "PLACES_LAYER") // 👈 Toujours au-dessus du fond
             }
 
+            // 5. La correction du clic (pour interroger les deux couches)
             map.addOnMapClickListener { point ->
                 val screenPoint = map.projection.toScreenLocation(point)
-                val features = map.queryRenderedFeatures(screenPoint, "PLACES_LAYER")
+                // On vérifie en priorité la recherche, puis le fond
+                val features = map.queryRenderedFeatures(screenPoint, "SEARCH_LAYER", "PLACES_LAYER")
 
                 if (features.isNotEmpty()) {
                     val clickedFeature = features.first()
-                    val placeId = clickedFeature.getStringProperty("id")
-                    val clickedPlace = viewModel.places.value.find { it.id == placeId }
 
-                    if (clickedPlace != null) {
-                        currentSelectedPlace = clickedPlace
-                        // 👇 AFFICHAGE DU NOUVEAU BOTTOM SHEET MODULAIRE 👇
-                        val bottomSheet = PlaceDetailsBottomSheet(clickedPlace)
-                        bottomSheet.show(childFragmentManager, "PlaceDetailsBottomSheet")
-                    }
+                    // 💡 ASTUCE PRO : Au lieu de chercher dans une liste en mémoire qui a pu être effacée,
+                    // on recrée l'objet Place directement depuis les propriétés du point cliqué !
+                    val clickedPlace = Place(
+                        id = clickedFeature.getStringProperty("id"),
+                        name = clickedFeature.getStringProperty("name"),
+                        latitude = clickedFeature.getNumberProperty("lat").toDouble(),
+                        longitude = clickedFeature.getNumberProperty("lng").toDouble(),
+                        category = try { PlaceCategory.valueOf(clickedFeature.getStringProperty("category")) } catch (e: Exception) { PlaceCategory.CULTURE }
+                    )
+
+                    currentSelectedPlace = clickedPlace
+                    val bottomSheet = PlaceDetailsBottomSheet(clickedPlace)
+                    bottomSheet.show(childFragmentManager, "PlaceDetailsBottomSheet")
                     return@addOnMapClickListener true
                 }
                 false
@@ -801,25 +896,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         viewModel.fetchPostsByAuthor(uid)
     }
 
-    private fun resetAuthorFilterUI() {
-        currentAuthorId = null
-        binding.chipAuthor.text = "Auteur"
-
-        // On remet la couleur de texte par défaut (OnSurface)
-        val typedValue = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
-        binding.chipAuthor.setTextColor(typedValue.data)
-
-        // On remet le fond gris
-        binding.chipAuthor.chipBackgroundColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#dedede"))
-
-        // On vide les données dans le ViewModel
-        viewModel.resetAuthorFilter()
-
-        // On s'assure qu'on est bien sur l'affichage classique des posts
-        binding.rvSearchGrid.adapter = staggeredPostAdapter
-    }
-
     private fun drawableToBitmap(drawableId: Int): android.graphics.Bitmap? {
         val drawable = ContextCompat.getDrawable(requireContext(), drawableId)?.mutate() ?: return null
         androidx.core.graphics.drawable.DrawableCompat.setTint(drawable, android.graphics.Color.WHITE)
@@ -828,6 +904,23 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         val canvas = android.graphics.Canvas(bitmap)
         drawable.setBounds(0, 0, canvas.width, canvas.height)
         drawable.draw(canvas)
+        return bitmap
+    }
+
+    private fun createRoundPinBitmap(): android.graphics.Bitmap {
+        val size = 60 // Taille totale du pin en pixels (tu peux ajuster)
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+        // 1. Dessiner la bordure blanche extérieure
+        paint.color = android.graphics.Color.WHITE
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        // 2. Dessiner le cercle intérieur avec ta primary_color
+        paint.color = ContextCompat.getColor(requireContext(), R.color.primary_color)
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 6f, paint) // -6f pour l'épaisseur de la bordure
+
         return bitmap
     }
 
@@ -862,21 +955,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         // 3. Charger les données depuis le backend
         viewModel.fetchPostsByDateRange(startMillis, endMillis)
-    }
-
-    private fun resetDateFilterUI() {
-        currentStartDate = null
-        currentEndDate = null
-        binding.chipDate.text = "Date"
-
-        // On remet le texte et le fond par défaut
-        val typedValue = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
-        binding.chipDate.setTextColor(typedValue.data)
-        binding.chipDate.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
-
-        viewModel.resetDateFilter()
-        binding.rvSearchGrid.adapter = staggeredPostAdapter
     }
 
     private fun showNearbyFilterDialog() {
@@ -937,18 +1015,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         viewModel.fetchNearbyPosts(place.latitude, place.longitude, radiusKm)
     }
 
-    private fun resetNearbyFilterUI() {
-        currentNearbyPlace = null
-        binding.chipNearby.text = "À proximité"
-
-        val typedValue = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
-        binding.chipNearby.setTextColor(typedValue.data)
-        binding.chipNearby.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
-
-        viewModel.resetNearbyFilter()
-        binding.rvSearchGrid.adapter = staggeredPostAdapter
-    }
 
     override fun onStart() { super.onStart(); binding.mapView.onStart() }
     override fun onResume() { super.onResume(); binding.mapView.onResume() }

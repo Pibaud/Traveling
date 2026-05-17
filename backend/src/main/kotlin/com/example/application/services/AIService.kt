@@ -4,6 +4,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import com.example.application.models.AnalysisResult
 import java.util.Base64
 import kotlinx.serialization.json.*
 
@@ -12,8 +13,6 @@ object AIService {
     private val GEMINI_API_KEY = System.getenv("GEMINI_API_KEY")
         ?: throw IllegalStateException("La variable d'environnement GEMINI_API_KEY est manquante")
     private val client = HttpClient.newHttpClient()
-
-    data class AnalysisResult(val tags: List<String>, val embedding: List<Float>)
 
     suspend fun analyzeAndEmbedImage(imageUrl: String): AnalysisResult? {
         try {
