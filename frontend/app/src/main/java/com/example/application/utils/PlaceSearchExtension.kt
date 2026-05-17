@@ -82,9 +82,20 @@ fun MaterialAutoCompleteTextView.setupPlaceAutocomplete(
 
     // Quand l'utilisateur clique sur une suggestion de la liste
     this.setOnItemClickListener { _, _, position, _ ->
+        // 👇 1. ANNULATION DE LA RECHERCHE FANTÔME
+        // On annule le job coroutine qui vient d'être déclenché par l'auto-remplissage du texte
+        searchJob?.cancel()
+
         val selectedPlace = currentPlaces.getOrNull(position)
         selectedPlace?.let {
             onPlaceSelected(it)
+
+            // 👇 2. NETTOYAGE VISUEL
+            // On vide l'adapter et on force la fermeture du menu
+            adapter.clear()
+            adapter.notifyDataSetChanged()
+            dismissDropDown()
+
             // On cache le clavier après sélection
             val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.hideSoftInputFromWindow(this.windowToken, 0)

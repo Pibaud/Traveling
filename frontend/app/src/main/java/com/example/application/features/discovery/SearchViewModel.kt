@@ -162,6 +162,28 @@ class SearchViewModel(private val apiService: TravelingApiService) : ViewModel()
         }
     }
 
+    private val _nearbyPosts = MutableStateFlow<List<Post>>(emptyList())
+    val nearbyPosts: StateFlow<List<Post>> = _nearbyPosts.asStateFlow()
+
+    fun fetchNearbyPosts(lat: Double, lng: Double, radiusKm: Double) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val currentUserId = Firebase.auth.currentUser?.uid
+                val posts = apiService.getPostsNearby(lat, lng, radiusKm, currentUserId) // Remplace apiService par le nom de ta variable retrofit
+                _nearbyPosts.value = posts
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun resetNearbyFilter() {
+        _nearbyPosts.value = emptyList()
+    }
+
     fun resetDateFilter() {
         _datePosts.value = emptyList()
     }

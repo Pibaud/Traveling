@@ -301,5 +301,22 @@ fun Route.shareRoutes() {
                 call.respond(HttpStatusCode.InternalServerError)
             }
         }
+
+        get("/posts/nearby") {
+            val lat = call.request.queryParameters["lat"]?.toDoubleOrNull() ?: return@get call.respond(HttpStatusCode.BadRequest, "Latitude manquante")
+            val lng = call.request.queryParameters["lng"]?.toDoubleOrNull() ?: return@get call.respond(HttpStatusCode.BadRequest, "Longitude manquante")
+            val radius = call.request.queryParameters["radius"]?.toDoubleOrNull() ?: 2.5
+            val currentUserId = call.request.queryParameters["userId"]
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+
+            try {
+                val posts = PostService.getPostsNearby(lat, lng, radius, limit, offset, currentUserId)
+                call.respond(HttpStatusCode.OK, posts)
+            } catch (e: Exception) {
+                application.log.error("Erreur récupération posts à proximité", e)
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
     }
 }

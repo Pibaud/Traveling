@@ -209,6 +209,16 @@ interface TravelingApiService {
         @Query("limit") limit: Int = 20,
         @Query("offset") offset: Int = 0
     ): List<Post>
+
+    @GET("share/posts/nearby")
+    suspend fun getPostsNearby(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+        @Query("radius") radius: Double,
+        @Query("userId") userId: String? = null,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): List<Post>
 }
 
 

@@ -5,6 +5,8 @@ import SearchViewModelFactory
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
+import android.view.LayoutInflater
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import com.example.application.R
@@ -57,6 +59,8 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private val snapHelper = androidx.recyclerview.widget.PagerSnapHelper()
     private var currentCategory: String? = null
     var previousSize = 0
+    private var currentNearbyPlace: com.example.application.model.Place? = null
+    private var currentNearbyRadius: Double = 2.5
     private var currentStartDate: Long? = null
     private var currentEndDate: Long? = null
     var previousAuthorSize = 0
@@ -248,6 +252,49 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             }
         }
 
+        // Observation des posts à proximité (Nearby)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.nearbyPosts.collect { posts ->
+                if (posts.isNotEmpty()) {
+                    if (binding.rvSearchGrid.adapter != staggeredPostAdapter) {
+                        binding.rvSearchGrid.adapter = staggeredPostAdapter
+                    }
+                    staggeredPostAdapter.submitList(posts)
+
+                    if (binding.rvMapPlaces.adapter != horizontalPostAdapter) {
+                        binding.rvMapPlaces.adapter = horizontalPostAdapter
+                    }
+                    horizontalPostAdapter.submitList(posts, false)
+
+                    val placesFromPosts = posts.map { it.place }.distinctBy { it.id }
+                    updateMapMarkers(placesFromPosts)
+
+                    if (binding.mapView.visibility == View.VISIBLE) {
+                        binding.rvMapPlaces.visibility = View.VISIBLE
+                        val firstPost = posts.firstOrNull()
+                        if (firstPost != null && (currentSelectedPlace == null || firstPost.place.id != currentSelectedPlace?.id)) {
+                            currentSelectedPlace = firstPost.place
+                            binding.rvMapPlaces.post {
+                                binding.rvMapPlaces.scrollToPosition(0)
+                                moveMapToPlace(firstPost.place)
+                            }
+                        }
+                    }
+                } else {
+                    // Nettoyage complet
+                    staggeredPostAdapter.submitList(emptyList())
+                    horizontalPostAdapter.submitList(emptyList())
+                    updateMapMarkers(emptyList())
+                    binding.rvMapPlaces.visibility = View.GONE
+                    currentSelectedPlace = null
+
+                    if (currentNearbyPlace != null) {
+                        Toast.makeText(requireContext(), "Aucun post trouvé à proximité", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.searchResults.collect { posts ->
                 if (posts.isNotEmpty()) {
@@ -318,6 +365,14 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             apiService = RetrofitInstance.api
         ) { selectedPlace ->
             handlePlaceSelection(selectedPlace)
+        }
+
+        binding.chipNearby.setOnClickListener {
+            if (currentNearbyPlace != null) {
+                resetNearbyFilterUI()
+            } else {
+                showNearbyFilterDialog()
+            }
         }
 
         // On écoute la fermeture de la BottomSheet pour vider la variable
@@ -821,6 +876,77 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         binding.chipDate.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
 
         viewModel.resetDateFilter()
+        binding.rvSearchGrid.adapter = staggeredPostAdapter
+    }
+
+    private fun showNearbyFilterDialog() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_nearby_filter, null)
+        val autocompleteTextView = dialogView.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.etDialogPlaceInput)
+        val slider = dialogView.findViewById<com.google.android.material.slider.Slider>(R.id.sliderRadius)
+        val tvLabel = dialogView.findViewById<TextView>(R.id.tvRadiusLabel)
+
+        var selectedPlaceTemp: com.example.application.model.Place? = null
+
+        // Initialisation de ton extension d'autocomplétion sur la vue du Dialog !
+        autocompleteTextView.setupPlaceAutocomplete(
+            coroutineScope = viewLifecycleOwner.lifecycleScope,
+            apiService = com.example.application.model.RetrofitInstance.api
+        ) { place ->
+            selectedPlaceTemp = place
+        }
+
+        // Écoute du changement de valeur du Slider
+        slider.addOnChangeListener { _, value, _ ->
+            tvLabel.text = "Rayon maximum : $value km"
+        }
+
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
+            .setPositiveButton("Filtrer") { dialog, _ ->
+                val place = selectedPlaceTemp
+                if (place != null) {
+                    applyNearbyFilter(place, slider.value.toDouble())
+                } else {
+                    Toast.makeText(requireContext(), "Veuillez sélectionner un lieu valide", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Annuler") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    private fun applyNearbyFilter(place: com.example.application.model.Place, radiusKm: Double) {
+        currentNearbyPlace = place
+        currentNearbyRadius = radiusKm
+
+        // Visuel d'activation du Chip
+        binding.chipNearby.text = "À proximité (${radiusKm}km)"
+        binding.chipNearby.setTextColor(Color.WHITE)
+        binding.chipNearby.chipBackgroundColor = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.primary_color))
+
+        // Reset des filtres concurrents
+        if (currentCategory != null) resetCategoryFilter()
+        if (currentAuthorId != null) resetAuthorFilterUI()
+        if (currentStartDate != null) resetDateFilterUI()
+
+        if (binding.rvSearchGrid.visibility != View.VISIBLE) {
+            switchToGridView()
+        }
+
+        // Lancement de l'appel
+        viewModel.fetchNearbyPosts(place.latitude, place.longitude, radiusKm)
+    }
+
+    private fun resetNearbyFilterUI() {
+        currentNearbyPlace = null
+        binding.chipNearby.text = "À proximité"
+
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        binding.chipNearby.setTextColor(typedValue.data)
+        binding.chipNearby.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#dedede"))
+
+        viewModel.resetNearbyFilter()
         binding.rvSearchGrid.adapter = staggeredPostAdapter
     }
 
