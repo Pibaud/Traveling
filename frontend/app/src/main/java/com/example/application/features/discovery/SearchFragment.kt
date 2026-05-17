@@ -266,6 +266,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         // On écoute la fermeture de la BottomSheet pour vider la variable
+        /*
         childFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
             override fun onFragmentViewDestroyed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
                 super.onFragmentViewDestroyed(fm, f)
@@ -275,6 +276,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                 }
             }
         }, false)
+        */
     }
 
     private fun resetCategoryFilter() {
@@ -399,6 +401,10 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         if (currentSelectedPlace != null) {
             // Si un lieu était déjà focus, on va dessus
             moveMapToPlace(currentSelectedPlace!!)
+            val existingSheet = childFragmentManager.findFragmentByTag("PlaceDetails")
+            if (existingSheet == null) {
+                PlaceDetailsBottomSheet(currentSelectedPlace!!).show(childFragmentManager, "PlaceDetails")
+            }
         } else if (hasItems) {
             // 2. Si aucun lieu n'est focus, on récupère le premier élément du BON adapter
             val firstPlace = if (currentAdapter == horizontalPostAdapter) {
