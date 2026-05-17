@@ -197,6 +197,7 @@
                 <com.google.android.material.chip.Chip android:id="@+id/chipPrefCulture" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Culture" />
                 <com.google.android.material.chip.Chip android:id="@+id/chipPrefDecouverte" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Découverte" />
                 <com.google.android.material.chip.Chip android:id="@+id/chipPrefLoisirs" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Loisirs" />
+                <com.google.android.material.chip.Chip android:id="@+id/chipPrefRestaurant" style="@style/Widget.MaterialComponents.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Restauration" />
             </com.google.android.material.chip.ChipGroup>
         </LinearLayout>
 

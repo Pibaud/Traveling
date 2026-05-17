@@ -131,4 +131,41 @@ object UserService {
             false
         }
     }
+
+    suspend fun getTokensForNewPost(
+        authorId: String,
+        placeId: String,
+        groupIds: List<String>
+    ): List<String> = dbQuery {
+        val tokens = mutableSetOf<String>()
+
+        // Préparation de la condition pour les groupes (seulement si le post est publié dans des groupes)
+        val groupCondition = if (groupIds.isNotEmpty()) {
+            val formattedIds = groupIds.joinToString(",") { "'$it'" }
+            "OR u.firebase_id IN (SELECT user_id FROM group_members WHERE should_notify = true AND group_id IN ($formattedIds))"
+        } else ""
+
+        // Une requête SQL magique qui fait tout d'un coup, sans envoyer de notification à l'auteur lui-même !
+        val sql = """
+            WITH place_info AS (SELECT category FROM places WHERE id = '$placeId' LIMIT 1)
+            SELECT DISTINCT u.fcm_token
+            FROM users u
+            CROSS JOIN place_info
+            WHERE u.fcm_token IS NOT NULL
+            AND u.firebase_id != '$authorId' 
+            AND (
+                u.firebase_id IN (SELECT follower_id FROM user_follows WHERE followed_id = '$authorId')
+                OR u.firebase_id IN (SELECT user_id FROM place_likes WHERE place_id = '$placeId')
+                OR u.preferences ILIKE '%' || place_info.category || '%'
+                $groupCondition
+            )
+        """.trimIndent()
+
+        org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(sql) { rs ->
+            while (rs.next()) {
+                rs.getString("fcm_token")?.let { tokens.add(it) }
+            }
+        }
+        tokens.toList()
+    }
 }

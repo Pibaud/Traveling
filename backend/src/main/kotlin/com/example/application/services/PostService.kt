@@ -81,7 +81,28 @@ object PostService {
                     }
                 }
             }
-            true
+            try {
+                // 1. Récupérer le nom de l'auteur et du lieu pour faire un beau message
+                val authorProfile = UserService.getUserProfile(authorId, null)
+                val authorName = authorProfile?.username ?: "Un voyageur"
+
+                // On récupère le nom du lieu avec une requête rapide
+                var placeName = "une destination"
+                org.jetbrains.exposed.sql.transactions.TransactionManager.current().exec(
+                    "SELECT name FROM places WHERE id = '$placeId'"
+                ) { rs -> if (rs.next()) placeName = rs.getString("name") }
+
+                // 2. On récupère nos tokens fusionnés !
+                val tokens = UserService.getTokensForNewPost(authorId, placeId, groupIds)
+
+                // 3. On envoie
+                NotificationService.notifyNewPostPublished(authorName, placeName, tokens)
+
+            } catch (e: Exception) {
+                println("Erreur lors de l'envoi des notifications de post : ${e.message}")
+            }
+
+            return@dbQuery true
         } catch (e: Exception) {
             e.printStackTrace()
             false

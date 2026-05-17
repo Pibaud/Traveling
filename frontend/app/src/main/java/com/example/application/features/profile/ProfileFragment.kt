@@ -49,6 +49,7 @@ class ProfileFragment : Fragment() {
                 if (binding.chipPrefCulture.isChecked) selected.add("CULTURE")
                 if (binding.chipPrefDecouverte.isChecked) selected.add("DECOUVERTE")
                 if (binding.chipPrefLoisirs.isChecked) selected.add("LOISIRS")
+                if (binding.chipPrefRestaurant.isChecked) selected.add("RESTAURATION")
                 val prefsString = selected.joinToString(",")
 
                 lifecycleScope.launch {
@@ -63,6 +64,7 @@ class ProfileFragment : Fragment() {
             binding.chipPrefDecouverte.setOnCheckedChangeListener { _, _ -> updatePrefs() }
             binding.chipPrefLoisirs.setOnCheckedChangeListener { _, _ -> updatePrefs() }
 
+
             // --- APPEL API POUR LES INFOS UTILISATEUR & STATS ---
             loadUserProfile(currentUser.uid)
 
@@ -73,6 +75,38 @@ class ProfileFragment : Fragment() {
         } else {
             binding.btnLogout.visibility = View.GONE
             findNavController().navigate(R.id.action_profile_to_auth)
+        }
+    }
+
+    private fun updatePrefs() {
+        val currentUser = Firebase.auth.currentUser ?: return
+
+        // 1. On regarde quelles cases sont cochées
+        val selectedPrefs = mutableListOf<String>()
+        if (binding.chipPrefCulture.isChecked) selectedPrefs.add("CULTURE")
+        if (binding.chipPrefDecouverte.isChecked) selectedPrefs.add("DECOUVERTE")
+        if (binding.chipPrefLoisirs.isChecked) selectedPrefs.add("LOISIRS")
+        if (binding.chipPrefRestaurant.isChecked) selectedPrefs.add("RESTAURATION")
+
+        // 2. On transforme ça en texte (ex: "CULTURE,LOISIRS")
+        val prefsString = selectedPrefs.joinToString(",")
+
+        // 3. On envoie la mise à jour au serveur
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                // On envoie uniquement les préférences, le backend doit ignorer les null pour bio et avatarUrl
+                val request = UpdateProfileRequest(
+                    preferences = prefsString
+                )
+
+                val response = RetrofitInstance.api.updateProfile(currentUser.uid, request)
+
+                if (!response.isSuccessful) {
+                    Toast.makeText(requireContext(), "Erreur lors de la sauvegarde des préférences", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -160,8 +194,32 @@ class ProfileFragment : Fragment() {
                     binding.tvStatLiked.text = profile.likedCount.toString()
                     binding.tvStatReceivedLikes.text = profile.totalLikesReceived.toString()
 
-                    // 👇 MODIFICATION ICI 👇
+                    // 3. Les 4 boîtes de statistiques
+                    binding.tvStatCreated.text = profile.createdCount.toString()
+                    binding.tvStatLiked.text = profile.likedCount.toString()
+                    binding.tvStatReceivedLikes.text = profile.totalLikesReceived.toString()
                     binding.tvStatFollowers.text = profile.followerCount.toString()
+
+                    // 👇 LA CORRECTION DU BUG DES CENTRES D'INTÉRÊT 👇
+                    val prefs = profile.preferredCategories ?: ""
+
+                    // On retire temporairement les écouteurs pour ne pas déclencher de requêtes API inutiles
+                    binding.chipPrefCulture.setOnCheckedChangeListener(null)
+                    binding.chipPrefDecouverte.setOnCheckedChangeListener(null)
+                    binding.chipPrefLoisirs.setOnCheckedChangeListener(null)
+                    binding.chipPrefRestaurant.setOnCheckedChangeListener(null)
+
+                    // On coche visuellement selon ce qui vient de la base de données
+                    binding.chipPrefCulture.isChecked = prefs.contains("CULTURE")
+                    binding.chipPrefDecouverte.isChecked = prefs.contains("DECOUVERTE")
+                    binding.chipPrefLoisirs.isChecked = prefs.contains("LOISIRS")
+                    binding.chipPrefRestaurant.isChecked = prefs.contains("RESTAURATION")
+
+                    // On remet les écouteurs !
+                    binding.chipPrefCulture.setOnCheckedChangeListener { _, _ -> updatePrefs() }
+                    binding.chipPrefDecouverte.setOnCheckedChangeListener { _, _ -> updatePrefs() }
+                    binding.chipPrefLoisirs.setOnCheckedChangeListener { _, _ -> updatePrefs() }
+                    binding.chipPrefRestaurant.setOnCheckedChangeListener { _, _ -> updatePrefs() }
 
                 } else {
                     Toast.makeText(requireContext(), "Impossible de charger le profil : ${response.code()}", Toast.LENGTH_SHORT).show()

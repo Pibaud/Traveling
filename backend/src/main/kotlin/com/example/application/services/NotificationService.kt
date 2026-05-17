@@ -44,4 +44,39 @@ object NotificationService {
             println("FCM: Notifications terminées. Succès: $successCount, Échecs: $failureCount")
         }
     }
+
+    suspend fun notifyNewPostPublished(
+        authorName: String,
+        placeName: String,
+        tokens: List<String>
+    ) {
+        if (tokens.isEmpty()) return
+
+        withContext(Dispatchers.IO) {
+            val notification = Notification.builder()
+                .setTitle("Nouveau post de @$authorName ! 📸")
+                .setBody("Découvrez sa nouvelle photo prise à $placeName.")
+                .build()
+
+            var successCount = 0
+            var failureCount = 0
+
+            for (token in tokens) {
+                try {
+                    val message = Message.builder()
+                        .setNotification(notification)
+                        .putData("type", "NEW_POST")
+                        .setToken(token)
+                        .build()
+
+                    FirebaseMessaging.getInstance().send(message)
+                    successCount++
+                } catch (e: Exception) {
+                    println("FCM Erreur pour le token $token : ${e.message}")
+                    failureCount++
+                }
+            }
+            println("FCM Posts: Terminé. Succès: $successCount, Échecs: $failureCount")
+        }
+    }
 }
