@@ -146,11 +146,11 @@ object UserService {
         } else ""
 
         // Une requête SQL magique qui fait tout d'un coup, sans envoyer de notification à l'auteur lui-même !
+        // Une requête SQL magique qui commence bien par SELECT pour Exposed !
         val sql = """
-            WITH place_info AS (SELECT category FROM places WHERE id = '$placeId' LIMIT 1)
             SELECT DISTINCT u.fcm_token
             FROM users u
-            CROSS JOIN place_info
+            CROSS JOIN (SELECT category FROM places WHERE id = '$placeId' LIMIT 1) as place_info
             WHERE u.fcm_token IS NOT NULL
             AND u.firebase_id != '$authorId' 
             AND (
