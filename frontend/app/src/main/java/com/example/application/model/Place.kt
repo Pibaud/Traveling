@@ -13,6 +13,7 @@ data class Place(
     val duration: Int = 1,      // Durée en heures
     val effort: Int = 1,        // Effort de 1 à 3 (ou 5)
     val openingHours: String? = null,
+    val meteo: Int = 1,
     val arrivalTime: String? = null
 )
 

@@ -19,6 +19,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
+import kotlin.math.*
 import kotlin.math.roundToInt
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.count
@@ -26,159 +27,316 @@ import com.example.application.Itineraries
 import com.example.application.Steps
 
 object PathService {
+
+    // ---------------------------------------------------------------------------
+    // GÉNÉRATION D'ITINÉRAIRES
+    // ---------------------------------------------------------------------------
+
     suspend fun generatePath(req: GeneratePathRequest): List<ItineraryResponse> = dbQuery {
 
-        // 1. Récupération de TOUS les lieux avec du SQL Brut
+        // ── 1. Chargement de tous les lieux ────────────────────────────────────
         val sql = """
-            SELECT id, name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng, price, duration, effort, opening_hours::text as opening_hours
+            SELECT id, name, category,
+                   ST_Y(location::geometry) AS lat,
+                   ST_X(location::geometry) AS lng,
+                   price, duration, effort, meteo,
+                   opening_hours::text AS opening_hours
             FROM places
         """.trimIndent()
 
         val allPlaces = mutableListOf<Place>()
-
         TransactionManager.current().exec(sql) { rs ->
             while (rs.next()) {
-                allPlaces.add(Place(
-                    id = rs.getString("id"),
-                    name = rs.getString("name"),
-                    latitude = rs.getDouble("lat"),
-                    longitude = rs.getDouble("lng"),
-                    category = try { PlaceCategory.valueOf(rs.getString("category").uppercase()) } catch (e: Exception) { PlaceCategory.CULTURE },
-                    price = rs.getInt("price"),
-                    duration = rs.getInt("duration"),
-                    effort = rs.getInt("effort"),
-                    openingHours = rs.getString("opening_hours")
-                ))
+                allPlaces.add(
+                    Place(
+                        id           = rs.getString("id"),
+                        name         = rs.getString("name"),
+                        latitude     = rs.getDouble("lat"),
+                        longitude    = rs.getDouble("lng"),
+                        category     = try {
+                            PlaceCategory.valueOf(rs.getString("category").uppercase())
+                        } catch (e: Exception) { PlaceCategory.CULTURE },
+                        price        = rs.getInt("price"),
+                        duration     = rs.getInt("duration"),   // en MINUTES
+                        effort       = rs.getInt("effort"),
+                        meteo        = rs.getInt("meteo"),       // 0 = intérieur, 1 = mixte, 2 = extérieur
+                        openingHours = rs.getString("opening_hours")
+                    )
+                )
             }
         }
 
-        // 2. On isole le(s) lieu(x) obligatoire(s)
+        // ── 2. Lieux obligatoires (sélectionnés par l'utilisateur) ─────────────
         val mandatoryPlaces = allPlaces.filter { it.id in req.selectedPlaceIds }
 
-        // 👇 LA CORRECTION EST ICI 👇
+        // ── 3. Vérification budget minimal ────────────────────────────────────
+        val mandatoryCost = mandatoryPlaces.sumOf { it.price }
+        if (mandatoryCost > req.budgetMax) {
+            return@dbQuery listOf(
+                ItineraryResponse(
+                    name          = "Erreur",
+                    hexColor      = "#FF0000",
+                    totalPrice    = 0,
+                    totalDuration = 0,
+                    avgEffort     = 0,
+                    mealIncluded  = false,
+                    errorMessage  = "Le budget est trop bas pour inclure vos lieux favoris ($mandatoryCost€ requis).",
+                    startTimeMinutes = req.startTimeMinutes
+                )
+            )
+        }
 
-        // Si l'utilisateur n'a rien coché, on cherche dans les 3 catégories de base au lieu de tout bloquer
+        // ── 4. Catégories demandées ────────────────────────────────────────────
         val baseCategories = if (req.categories.isEmpty()) {
             listOf("CULTURE", "DECOUVERTE", "LOISIRS")
         } else {
             req.categories.map { it.uppercase() }
         }
+        val requestedCategories = if (req.mealIncluded) baseCategories + "RESTAURATION" else baseCategories
 
-        // On ajoute intelligemment la restauration si la case était cochée !
-        val requestedCategories = if (req.mealIncluded) {
-            baseCategories + "RESTAURATION"
+        // ── 5. Budget max et durée max en MINUTES ─────────────────────────────
+        //   req.durationHours est en heures → on convertit une fois pour toutes
+        val budgetMax       = req.budgetMax
+        val durationMaxMin  = req.durationHours * 60   // ← CORRECTION BUG (heures → minutes)
+
+        // ── 6. Pool de candidats ───────────────────────────────────────────────
+        //   - bonne catégorie
+        //   - effort acceptable
+        //   - météo compatible : meteo du lieu <= tolérance météo de l'utilisateur
+        //     (0 = intérieur → toujours ok ; 2 = plein air → ok seulement si tolérance >= 2)
+        //   - pas déjà dans les obligatoires
+        val candidatePool = allPlaces.filter { place ->
+            place.category.name in requestedCategories &&
+                    place.effort       <= req.effortLevel       &&
+                    place.meteo        <= req.weatherTolerance  &&
+                    place.id           !in req.selectedPlaceIds
+        }
+
+        // ── 7. Point de départ géographique ───────────────────────────────────
+        //   Si l'utilisateur a des lieux obligatoires, on part du premier.
+        //   Sinon on utilise le centroïde du pool pour initialiser le nearest neighbor.
+        val startPoint: Pair<Double, Double> = if (mandatoryPlaces.isNotEmpty()) {
+            mandatoryPlaces.first().latitude to mandatoryPlaces.first().longitude
+        } else if (candidatePool.isNotEmpty()) {
+            val avgLat = candidatePool.sumOf { it.latitude }  / candidatePool.size
+            val avgLng = candidatePool.sumOf { it.longitude } / candidatePool.size
+            avgLat to avgLng
         } else {
-            baseCategories
+            0.0 to 0.0
         }
 
-        // 3. On filtre les candidats (ceux qu'on a le droit de rajouter)
-        val candidatePlaces = allPlaces.filter {
-            it.category.name in requestedCategories &&
-                    it.effort <= req.effortLevel &&
-                    it.id !in req.selectedPlaceIds // On ne remet pas le lieu imposé !
-        }
+        // ── 8. Fonction nearest-neighbor ──────────────────────────────────────
+        //
+        //   Principe :
+        //   - On part d'un point de départ (dernier lieu ajouté ou startPoint).
+        //   - À chaque itération on choisit dans les candidats restants le lieu :
+        //       * dont le coût cumulé reste dans le budget
+        //       * dont la durée cumulée reste dans le temps max
+        //       * qui sera ouvert à l'heure estimée d'arrivée
+        //       * qui minimise la "distance pondérée" = distance géo + pénalité selon la variante
+        //   - On continue jusqu'à ce qu'aucun candidat ne soit ajoutable.
+        //
+        //   Le paramètre `priorityWeight` est une lambda qui retourne un score de
+        //   préférence (plus bas = plus prioritaire). Il est combiné à la distance
+        //   géographique pour nuancer le choix selon la variante.
+        //
+        //   score = distanceKm + priorityWeight(place) * priorityFactor
+        //   priorityFactor détermine l'importance du critère métier vs distance.
 
-        val mandatoryCost = mandatoryPlaces.sumOf { it.price }
-        val mandatoryDuration = mandatoryPlaces.sumOf { it.duration }
+        fun buildVariantNearestNeighbor(
+            name           : String,
+            color          : String,
+            candidates     : List<Place>,
+            priorityFactor : Double,
+            priorityWeight : (Place) -> Double,
+            budgetCap      : Int = budgetMax    // plafond propre à chaque variante
+        ): ItineraryResponse {
 
-        if (mandatoryCost > req.budgetMax) {
-            return@dbQuery listOf(ItineraryResponse(
-                name = "Erreur", hexColor = "#FF0000", totalPrice = 0, totalDuration = 0,
-                avgEffort = 0, mealIncluded = false,
-                errorMessage = "Le budget est trop bas pour inclure vos lieux favoris ($mandatoryCost€ requis).",
-                startTimeMinutes = req.startTimeMinutes
-            ))
-        }
+            val visited      = mutableListOf<Place>()
+            var currentCost  = 0
+            var currentDurMin = 0
+            var currentTimeMin = req.startTimeMinutes
 
-        // ... (La suite de ton code avec la fonction `buildVariant` reste identique) ...
-
-        fun buildVariant(name: String, color: String, sortedCandidates: List<Place>): ItineraryResponse {
-            val finalSteps = mutableListOf<Place>()
-            var currentCost = 0
-            var currentDuration = 0
-            var currentTimeMinutes = req.startTimeMinutes
-
-            for (place in mandatoryPlaces) {
-                finalSteps.add(place.copy(arrivalTime = formatTime(currentTimeMinutes)))
-                currentCost += place.price
-                currentDuration += place.duration
-                currentTimeMinutes += (place.duration * 60) + 30
-            }
-
-            for (place in sortedCandidates) {
-                if (currentCost + place.price <= req.budgetMax && currentDuration + place.duration <= req.durationHours) {
-
-                    val placeDurationMin = place.duration * 60
-                    val estimatedArrival = currentTimeMinutes
-                    val estimatedDeparture = currentTimeMinutes + placeDurationMin
-
-                    if (isPlaceOpen(place.openingHours, estimatedArrival, estimatedDeparture)) {
-                        finalSteps.add(place.copy(arrivalTime = formatTime(estimatedArrival)))
-                        currentCost += place.price
-                        currentDuration += place.duration
-                        currentTimeMinutes += placeDurationMin + 30
-                    }
+            // Ajouter les lieux obligatoires en premier (dans l'ordre de sélection)
+            mandatoryPlaces.forEachIndexed { index, place ->
+                val durationMin = place.duration * 60   // BDD stocke en heures → minutes
+                // Transit depuis le lieu précédent (0 pour le tout premier)
+                if (index > 0) {
+                    val prev = mandatoryPlaces[index - 1]
+                    currentTimeMin += transitMin(prev.latitude, prev.longitude, place.latitude, place.longitude)
                 }
+                visited.add(place.copy(arrivalTime = formatTime(currentTimeMin)))
+                currentCost    += place.price
+                currentDurMin  += durationMin
+                currentTimeMin += durationMin
             }
 
-            val coverImages = getTopImagesForPlaces(finalSteps)
-            val placesWithSchedules = recalculateSchedules(finalSteps, req.startTimeMinutes)
+            // Point courant = dernier lieu visité, ou startPoint si aucun obligatoire
+            var currentLat = if (visited.isNotEmpty()) visited.last().latitude  else startPoint.first
+            var currentLng = if (visited.isNotEmpty()) visited.last().longitude else startPoint.second
+
+            // Si on a des lieux obligatoires, on ajoute le transit vers le premier candidat
+            // (on ne connaît pas encore la destination, mais currentLat/Lng est prêt pour
+            //  que le filtre calcule transitMin correctement dès le premier tour)
+
+            val remaining = candidates.toMutableList()
+
+            // Nearest-neighbor : on ajoute un lieu à la fois.
+            // À chaque tour : on calcule le transit depuis la position courante,
+            // on arrive au lieu suivant, on y passe sa durée, puis on repart.
+            while (remaining.isNotEmpty()) {
+                val next = remaining
+                    .filter { place ->
+                        val transit     = transitMin(currentLat, currentLng, place.latitude, place.longitude)
+                        val arrivalTime = currentTimeMin + transit
+                        val durationMin = place.duration * 60   // heures → minutes
+                        // Contrainte budget (plafond de la variante)
+                        currentCost + place.price <= budgetCap &&
+                                // Contrainte durée — LIMITE STRICTE (transit + visite doivent tenir)
+                                currentDurMin + transit + durationMin <= durationMaxMin &&
+                                // Contrainte horaires : le lieu doit être ouvert à l'heure d'arrivée réelle
+                                isPlaceOpen(place.openingHours, arrivalTime, arrivalTime + durationMin)
+                    }
+                    .minByOrNull { place ->
+                        val dist = haversineKm(currentLat, currentLng, place.latitude, place.longitude)
+                        dist + priorityWeight(place) * priorityFactor
+                    }
+
+                if (next == null) break
+
+                val transit        = transitMin(currentLat, currentLng, next.latitude, next.longitude)
+                val nextDurationMin = next.duration * 60    // heures → minutes
+                currentTimeMin += transit                    // on voyage
+                visited.add(next.copy(arrivalTime = formatTime(currentTimeMin)))
+                currentTimeMin += nextDurationMin            // on visite
+                currentCost    += next.price
+                currentDurMin  += transit + nextDurationMin
+                currentLat      = next.latitude
+                currentLng      = next.longitude
+                remaining.remove(next)
+            }
+
+            val coverImages        = getTopImagesForPlaces(visited)
+            val placesWithSchedule = recalculateSchedules(visited, req.startTimeMinutes)
 
             return ItineraryResponse(
-                name = name,
-                hexColor = color,
-                totalPrice = currentCost,
-                totalDuration = currentDuration,
-                avgEffort = if(finalSteps.isEmpty()) 0 else finalSteps.sumOf { it.effort } / finalSteps.size,
-                mealIncluded = finalSteps.any { it.category.name == "RESTAURATION" },
-                steps = placesWithSchedules,
-                coverImages = coverImages,
-                likeCount = 0,
-                startTimeMinutes = req.startTimeMinutes, // 👈 Ajout ici
-                authorName = "IA Traveling"
+                name          = name,
+                hexColor      = color,
+                totalPrice    = currentCost,
+                totalDuration = currentDurMin / 60,   // minutes → heures pour le front
+                avgEffort     = if (visited.isEmpty()) 0 else visited.sumOf { it.effort } / visited.size,
+                mealIncluded  = visited.any { it.category.name == "RESTAURATION" },
+                steps         = placesWithSchedule,
+                coverImages   = coverImages,
+                likeCount     = 0,
+                startTimeMinutes = req.startTimeMinutes,
+                authorName    = "IA Traveling"
             )
         }
 
+        // ── 9. Construction des 3 variantes ───────────────────────────────────
+        //
+        //   Chaque variante reçoit le même pool de candidats mais un critère de
+        //   préférence différent. Le nearest-neighbor s'en sert pour départager
+        //   deux lieux à distance équivalente.
+        //
+        //   • ÉCO      → favorise les lieux peu chers.
+        //                priorityWeight = prix normalisé [0-1] × budget
+        //                (un lieu à 0€ aura score 0, à budgetMax€ aura score 1 × factor)
+        //
+        //   • ÉQUILIBRÉ → aucune pondération métier : choix purement géographique.
+        //                C'est la variante "distance minimale" pure.
+        //
+        //   • CONFORT  → favorise les lieux peu physiques (effort faible).
+        //                priorityWeight = effort normalisé [0-1]
+
+        val maxPrice  = candidatePool.maxOfOrNull { it.price }?.toDouble()  ?: 1.0
+        val maxEffort = candidatePool.maxOfOrNull { it.effort }?.toDouble() ?: 1.0
+
+        // facteur de pondération = 5 km équivalents au max du critère métier.
+        // Autrement dit, préférer un lieu de prix/effort minimal vaut ~5 km de détour.
+        val PRIORITY_FACTOR = 5.0
+
+        // Plafonds budgétaires par variante (par rapport au budgetMax demandé) :
+        //   Éco       → 60 % du budget max  (sélection frugale, vraiment moins cher)
+        //   Équilibré → 85 % du budget max  (compromis raisonnable)
+        //   Confort   → 100 % du budget max (on se fait plaisir)
+        // On s'assure que le coût obligatoire est toujours couvert (max avec mandatoryCost).
+        val budgetEco      = maxOf(mandatoryCost, (budgetMax * 0.60).toInt())
+        val budgetEquilibre = maxOf(mandatoryCost, (budgetMax * 0.85).toInt())
+        val budgetConfort  = budgetMax
+
         val result = listOf(
-            buildVariant("Éco", "#2D5A27", candidatePlaces.sortedBy { it.price }),
-            buildVariant("Équilibré", "#E59866", candidatePlaces.shuffled()),
-            buildVariant("Confort", "#884154", candidatePlaces.sortedByDescending { it.price })
+            // Éco : dépenser le moins possible, dans un périmètre géo cohérent
+            buildVariantNearestNeighbor(
+                name           = "Éco",
+                color          = "#2D5A27",
+                candidates     = candidatePool,
+                priorityFactor = PRIORITY_FACTOR,
+                priorityWeight = { place -> place.price / maxPrice },
+                budgetCap      = budgetEco
+            ),
+            // Équilibré : itinéraire géographiquement optimal, budget modéré
+            buildVariantNearestNeighbor(
+                name           = "Équilibré",
+                color          = "#E59866",
+                candidates     = candidatePool,
+                priorityFactor = 0.0,
+                priorityWeight = { 0.0 },
+                budgetCap      = budgetEquilibre
+            ),
+            // Confort : on évite les lieux physiquement exigeants, budget plein
+            buildVariantNearestNeighbor(
+                name           = "Confort",
+                color          = "#884154",
+                candidates     = candidatePool,
+                priorityFactor = PRIORITY_FACTOR,
+                priorityWeight = { place -> place.effort / maxEffort },
+                budgetCap      = budgetConfort
+            )
         )
 
         return@dbQuery result
     }
 
+    // ---------------------------------------------------------------------------
+    // SAUVEGARDE
+    // ---------------------------------------------------------------------------
+
     suspend fun savePath(request: SavePathRequest) = dbQuery {
         val newItineraryId = Itineraries.insert {
-            it[name] = request.name
-            it[hexColor] = request.hexColor
-            it[totalPrice] = request.totalPrice
-            it[totalDuration] = request.totalDuration
-            it[avgEffort] = request.avgEffort.toDouble()
-            it[mealIncluded] = request.mealIncluded
-            it[authorId] = request.userId
-            it[startTimeMinutes] = request.startTimeMinutes // 👈 On la sauvegarde en base !
+            it[name]             = request.name
+            it[hexColor]         = request.hexColor
+            it[totalPrice]       = request.totalPrice
+            it[totalDuration]    = request.totalDuration
+            it[avgEffort]        = request.avgEffort.toDouble()
+            it[mealIncluded]     = request.mealIncluded
+            it[authorId]         = request.userId
+            it[startTimeMinutes] = request.startTimeMinutes
         } get Itineraries.id
 
-        val tokens = UserService.getFollowerTokens(request.userId)
-
+        val tokens       = UserService.getFollowerTokens(request.userId)
         val authorProfile = UserService.getUserProfile(request.userId, null)
-        val authorName = authorProfile?.username ?: "Un voyageur"
+        val authorName   = authorProfile?.username ?: "Un voyageur"
 
         NotificationService.notifyFollowersNewItinerary(
-            authorName = authorName,
+            authorName    = authorName,
             itineraryName = request.name,
-            tokens = tokens
+            tokens        = tokens
         )
 
         request.placeIds.forEachIndexed { index, placeId ->
             Steps.insert {
                 it[itineraryId] = newItineraryId
                 it[this.placeId] = placeId
-                it[stepOrder] = index + 1
+                it[stepOrder]   = index + 1
             }
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // LIKE / UNLIKE
+    // ---------------------------------------------------------------------------
 
     suspend fun toggleLike(userId: String, itineraryId: Int): Boolean = dbQuery {
         val existingLike = ItineraryLikes.select {
@@ -192,12 +350,16 @@ object PathService {
             false
         } else {
             ItineraryLikes.insert {
-                it[this.userId] = userId
+                it[this.userId]      = userId
                 it[this.itineraryId] = itineraryId
             }
             true
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // LISTE PAR CATÉGORIE
+    // ---------------------------------------------------------------------------
 
     suspend fun getItinerariesByCategory(userId: String, category: String): List<ItineraryResponse> = dbQuery {
 
@@ -211,7 +373,9 @@ object PathService {
         val query = when {
             category == "SUGGESTIONS" -> Itineraries.selectAll().limit(10)
 
-            category == "LIKED" -> Itineraries.innerJoin(ItineraryLikes).select { ItineraryLikes.userId eq userId }
+            category == "LIKED" ->
+                Itineraries.innerJoin(ItineraryLikes)
+                    .select { ItineraryLikes.userId eq userId }
 
             category == "POPULAR" -> {
                 val likeCount = ItineraryLikes.userId.count()
@@ -224,7 +388,9 @@ object PathService {
             }
 
             category == "FOLLOWING" -> {
-                val followedIds = UserFollows.select { UserFollows.followerId eq userId }.map { it[UserFollows.followedId] }
+                val followedIds = UserFollows
+                    .select { UserFollows.followerId eq userId }
+                    .map { it[UserFollows.followedId] }
                 if (followedIds.isEmpty()) return@dbQuery emptyList()
 
                 val likeCount = ItineraryLikes.userId.count()
@@ -237,7 +403,7 @@ object PathService {
             }
 
             category.startsWith("AUTHOR_") -> {
-                val authorId = category.removePrefix("AUTHOR_")
+                val authorId  = category.removePrefix("AUTHOR_")
                 val likeCount = ItineraryLikes.userId.count()
                 Itineraries.leftJoin(ItineraryLikes)
                     .slice(Itineraries.columns + likeCount)
@@ -247,18 +413,16 @@ object PathService {
             }
 
             category.startsWith("GROUP_") -> {
-                val groupUuid = java.util.UUID.fromString(category.removePrefix("GROUP_"))
-
-                // 👇 NOUVEAU : On récupère l'ID ET le timestamp
-                val sharedData = com.example.application.GroupItineraries
+                val groupUuid   = java.util.UUID.fromString(category.removePrefix("GROUP_"))
+                val sharedData  = com.example.application.GroupItineraries
                     .select { com.example.application.GroupItineraries.groupId eq groupUuid }
                     .associate {
-                        it[com.example.application.GroupItineraries.itineraryId] to it[com.example.application.GroupItineraries.sharedAt]
+                        it[com.example.application.GroupItineraries.itineraryId] to
+                                it[com.example.application.GroupItineraries.sharedAt]
                     }
 
-                sharedTimestamps = sharedData // On sauvegarde pour plus tard
+                sharedTimestamps = sharedData
                 val sharedItineraryIds = sharedData.keys.toList()
-
                 if (sharedItineraryIds.isEmpty()) return@dbQuery emptyList()
 
                 val likeCount = ItineraryLikes.userId.count()
@@ -269,14 +433,14 @@ object PathService {
                     .orderBy(Itineraries.id to SortOrder.DESC)
             }
 
-            else -> Itineraries.select { Itineraries.authorId eq userId } // "MINE"
+            else -> Itineraries.select { Itineraries.authorId eq userId } // "MES_PARCOURS"
         }
 
         val rows = query.toList()
         if (rows.isEmpty()) return@dbQuery emptyList()
 
         val itineraryIds = rows.map { it[Itineraries.id] }
-        val authorIds = rows.map { it[Itineraries.authorId] }.distinct()
+        val authorIds    = rows.map { it[Itineraries.authorId] }.distinct()
 
         val allLikes = ItineraryLikes
             .select { ItineraryLikes.itineraryId inList itineraryIds }
@@ -285,93 +449,104 @@ object PathService {
         val authorNamesMap = mutableMapOf<String, String>()
         if (authorIds.isNotEmpty()) {
             val idsFormatted = authorIds.joinToString("','", "'", "'")
-            val sqlUsers = "SELECT firebase_id, username FROM users WHERE firebase_id IN ($idsFormatted)"
-
-            TransactionManager.current().exec(sqlUsers) { rs ->
+            TransactionManager.current().exec(
+                "SELECT firebase_id, username FROM users WHERE firebase_id IN ($idsFormatted)"
+            ) { rs ->
                 while (rs.next()) {
-                    val fId = rs.getString("firebase_id")
+                    val fId   = rs.getString("firebase_id")
                     val uName = rs.getString("username")
-                    if (fId != null && uName != null) {
-                        authorNamesMap[fId] = uName
-                    }
+                    if (fId != null && uName != null) authorNamesMap[fId] = uName
                 }
             }
         }
 
         rows.map { row ->
-            val itineraryId = row[Itineraries.id]
-            val authorId = row[Itineraries.authorId]
+            val itineraryId      = row[Itineraries.id]
+            val authorId         = row[Itineraries.authorId]
             val currentAuthorName = authorNamesMap[authorId] ?: "Utilisateur"
 
-            val sql = """
-            SELECT p.id, p.name, p.category, ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lng, p.price, p.duration, p.effort, p.opening_hours::text as opening_hours
-            FROM step s
-            JOIN places p ON s.place_id = p.id
-            WHERE s.itinerary_id = $itineraryId
-            ORDER BY s.step_order ASC
-        """.trimIndent()
+            val sqlSteps = """
+                SELECT p.id, p.name, p.category,
+                       ST_Y(p.location::geometry) AS lat,
+                       ST_X(p.location::geometry) AS lng,
+                       p.price, p.duration, p.effort, p.meteo,
+                       p.opening_hours::text AS opening_hours
+                FROM step s
+                JOIN places p ON s.place_id = p.id
+                WHERE s.itinerary_id = $itineraryId
+                ORDER BY s.step_order ASC
+            """.trimIndent()
 
             val places = mutableListOf<Place>()
-
-            TransactionManager.current().exec(sql) { rs ->
+            TransactionManager.current().exec(sqlSteps) { rs ->
                 while (rs.next()) {
-                    places.add(Place(
-                        id = rs.getString("id"),
-                        name = rs.getString("name"),
-                        latitude = rs.getDouble("lat"),
-                        longitude = rs.getDouble("lng"),
-                        category = try { PlaceCategory.valueOf(rs.getString("category").uppercase()) } catch (e: Exception) { PlaceCategory.CULTURE },
-                        price = rs.getInt("price"),
-                        duration = rs.getInt("duration"),
-                        effort = rs.getInt("effort"),
-                        openingHours = rs.getString("opening_hours")
-                    ))
+                    places.add(
+                        Place(
+                            id           = rs.getString("id"),
+                            name         = rs.getString("name"),
+                            latitude     = rs.getDouble("lat"),
+                            longitude    = rs.getDouble("lng"),
+                            category     = try {
+                                PlaceCategory.valueOf(rs.getString("category").uppercase())
+                            } catch (e: Exception) { PlaceCategory.CULTURE },
+                            price        = rs.getInt("price"),
+                            duration     = rs.getInt("duration"),
+                            effort       = rs.getInt("effort"),
+                            meteo        = rs.getInt("meteo"),
+                            openingHours = rs.getString("opening_hours")
+                        )
+                    )
                 }
             }
 
-            val coverImages = getTopImagesForPlaces(places)
-
-            // 👇 On récupère la vraie heure et on l'injecte 👇
-            val dbStartTime = row[Itineraries.startTimeMinutes]
-            val placesWithSchedules = recalculateSchedules(places, dbStartTime)
-
+            val coverImages           = getTopImagesForPlaces(places)
+            val dbStartTime           = row[Itineraries.startTimeMinutes]
+            val placesWithSchedules   = recalculateSchedules(places, dbStartTime)
             val totalLikesForThisItinerary = allLikes.count { it[ItineraryLikes.itineraryId] == itineraryId }
 
             ItineraryResponse(
-                id = itineraryId,
-                name = row[Itineraries.name],
-                hexColor = row[Itineraries.hexColor],
-                totalPrice = row[Itineraries.totalPrice]?: 0,
-                totalDuration = row[Itineraries.totalDuration]?: 0,
-                avgEffort = (row[Itineraries.avgEffort]?: 0.0).roundToInt(),
-                mealIncluded = row[Itineraries.mealIncluded]?: false,
-                steps = placesWithSchedules,
-                coverImages = coverImages,
-                isLiked = likedItineraryIds.contains(itineraryId),
-                likeCount = totalLikesForThisItinerary,
-                startTimeMinutes = dbStartTime, // 👈 Ajout ici
-                userId = authorId,
-                authorName = currentAuthorName,
-                sharedAt = sharedTimestamps[itineraryId] ?: 0L
+                id               = itineraryId,
+                name             = row[Itineraries.name],
+                hexColor         = row[Itineraries.hexColor],
+                totalPrice       = row[Itineraries.totalPrice]    ?: 0,
+                totalDuration    = row[Itineraries.totalDuration] ?: 0,
+                avgEffort        = (row[Itineraries.avgEffort]    ?: 0.0).roundToInt(),
+                mealIncluded     = row[Itineraries.mealIncluded]  ?: false,
+                steps            = placesWithSchedules,
+                coverImages      = coverImages,
+                isLiked          = likedItineraryIds.contains(itineraryId),
+                likeCount        = totalLikesForThisItinerary,
+                startTimeMinutes = dbStartTime,
+                userId           = authorId,
+                authorName       = currentAuthorName,
+                sharedAt         = sharedTimestamps[itineraryId] ?: 0L
             )
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // DÉTAIL D'UN ITINÉRAIRE
+    // ---------------------------------------------------------------------------
 
     suspend fun getItineraryById(itineraryId: Int): ItineraryResponse? = dbQuery {
         val row = Itineraries.select { Itineraries.id eq itineraryId }.singleOrNull()
             ?: return@dbQuery null
 
-        val authorId = row[Itineraries.authorId]
+        val authorId         = row[Itineraries.authorId]
         var currentAuthorName = "Utilisateur"
 
-        TransactionManager.current().exec("SELECT username FROM users WHERE firebase_id = '$authorId'") { rs ->
-            if (rs.next()) {
-                currentAuthorName = rs.getString("username") ?: "Utilisateur"
-            }
+        TransactionManager.current().exec(
+            "SELECT username FROM users WHERE firebase_id = '$authorId'"
+        ) { rs ->
+            if (rs.next()) currentAuthorName = rs.getString("username") ?: "Utilisateur"
         }
 
-        val sql = """
-            SELECT p.id, p.name, p.category, ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lng, p.price, p.duration, p.effort, p.opening_hours::text as opening_hours
+        val sqlSteps = """
+            SELECT p.id, p.name, p.category,
+                   ST_Y(p.location::geometry) AS lat,
+                   ST_X(p.location::geometry) AS lng,
+                   p.price, p.duration, p.effort, p.meteo,
+                   p.opening_hours::text AS opening_hours
             FROM step s
             JOIN places p ON s.place_id = p.id
             WHERE s.itinerary_id = $itineraryId
@@ -379,44 +554,50 @@ object PathService {
         """.trimIndent()
 
         val places = mutableListOf<Place>()
-
-        TransactionManager.current().exec(sql) { rs ->
+        TransactionManager.current().exec(sqlSteps) { rs ->
             while (rs.next()) {
-                places.add(Place(
-                    id = rs.getString("id"),
-                    name = rs.getString("name"),
-                    latitude = rs.getDouble("lat"),
-                    longitude = rs.getDouble("lng"),
-                    category = try { PlaceCategory.valueOf(rs.getString("category").uppercase()) } catch (e: Exception) { PlaceCategory.CULTURE },
-                    price = rs.getInt("price"),
-                    duration = rs.getInt("duration"),
-                    effort = rs.getInt("effort"),
-                    openingHours = rs.getString("opening_hours")
-                ))
+                places.add(
+                    Place(
+                        id           = rs.getString("id"),
+                        name         = rs.getString("name"),
+                        latitude     = rs.getDouble("lat"),
+                        longitude    = rs.getDouble("lng"),
+                        category     = try {
+                            PlaceCategory.valueOf(rs.getString("category").uppercase())
+                        } catch (e: Exception) { PlaceCategory.CULTURE },
+                        price        = rs.getInt("price"),
+                        duration     = rs.getInt("duration"),
+                        effort       = rs.getInt("effort"),
+                        meteo        = rs.getInt("meteo"),
+                        openingHours = rs.getString("opening_hours")
+                    )
+                )
             }
         }
 
-        // 👇 On récupère la vraie heure et on l'injecte 👇
-        val dbStartTime = row[Itineraries.startTimeMinutes]
-        val placesWithSchedules = recalculateSchedules(places, dbStartTime)
-
-        val totalLikes = ItineraryLikes.select { ItineraryLikes.itineraryId eq itineraryId }.count()
+        val dbStartTime        = row[Itineraries.startTimeMinutes]
+        val placesWithSchedule = recalculateSchedules(places, dbStartTime)
+        val totalLikes         = ItineraryLikes.select { ItineraryLikes.itineraryId eq itineraryId }.count()
 
         ItineraryResponse(
-            id = itineraryId,
-            name = row[Itineraries.name],
-            hexColor = row[Itineraries.hexColor],
-            totalPrice = row[Itineraries.totalPrice] ?: 0,
-            totalDuration = row[Itineraries.totalDuration] ?: 0,
-            avgEffort = (row[Itineraries.avgEffort] ?: 0.0).roundToInt(),
-            mealIncluded = row[Itineraries.mealIncluded] ?: false,
-            steps = placesWithSchedules,
-            likeCount = totalLikes.toInt(),
-            startTimeMinutes = dbStartTime, // 👈 Ajout ici
-            userId = authorId,
-            authorName = currentAuthorName
+            id               = itineraryId,
+            name             = row[Itineraries.name],
+            hexColor         = row[Itineraries.hexColor],
+            totalPrice       = row[Itineraries.totalPrice]    ?: 0,
+            totalDuration    = row[Itineraries.totalDuration] ?: 0,
+            avgEffort        = (row[Itineraries.avgEffort]    ?: 0.0).roundToInt(),
+            mealIncluded     = row[Itineraries.mealIncluded]  ?: false,
+            steps            = placesWithSchedule,
+            likeCount        = totalLikes.toInt(),
+            startTimeMinutes = dbStartTime,
+            userId           = authorId,
+            authorName       = currentAuthorName
         )
     }
+
+    // ---------------------------------------------------------------------------
+    // SUPPRESSION
+    // ---------------------------------------------------------------------------
 
     suspend fun deletePath(userId: String, itineraryId: Int): Boolean = dbQuery {
         val itinerary = Itineraries.select { Itineraries.id eq itineraryId }.singleOrNull()
@@ -432,35 +613,97 @@ object PathService {
         return@dbQuery deletedCount > 0
     }
 
-    private fun isPlaceOpen(jsonStr: String?, arrivalMin: Int, departureMin: Int): Boolean {
-        if (jsonStr.isNullOrEmpty() || jsonStr == "null") return true
+    // ---------------------------------------------------------------------------
+    // PARTAGE DANS UN GROUPE
+    // ---------------------------------------------------------------------------
+
+    suspend fun shareItineraryToGroup(itineraryId: Int, groupIdStr: String): Boolean = dbQuery {
         try {
-            val jsonArray = Json.parseToJsonElement(jsonStr).jsonArray
-            val arrivalNormalized = arrivalMin % (24 * 60)
-            var departureNormalized = departureMin % (24 * 60)
-            if (departureNormalized < arrivalNormalized) departureNormalized += 24 * 60
+            val groupUuid = java.util.UUID.fromString(groupIdStr)
 
-            for (element in jsonArray) {
-                val obj = element.jsonObject
-                val openStr = obj["open"]?.jsonPrimitive?.content ?: continue
-                val closeStr = obj["close"]?.jsonPrimitive?.content ?: continue
+            val exists = com.example.application.GroupItineraries.select {
+                (com.example.application.GroupItineraries.groupId eq groupUuid) and
+                        (com.example.application.GroupItineraries.itineraryId eq itineraryId)
+            }.count() > 0
 
-                val openParts = openStr.split(":")
-                val closeParts = closeStr.split(":")
-                val openMin = openParts[0].toInt() * 60 + openParts[1].toInt()
-                var closeMin = closeParts[0].toInt() * 60 + closeParts[1].toInt()
-
-                if (closeMin < openMin) closeMin += 24 * 60
-
-                if (arrivalNormalized >= openMin && departureNormalized <= closeMin) {
-                    return true
+            if (!exists) {
+                com.example.application.GroupItineraries.insert {
+                    it[groupId]         = groupUuid
+                    it[this.itineraryId] = itineraryId
+                    it[sharedAt]        = System.currentTimeMillis()
                 }
             }
-            return false
+            true
         } catch (e: Exception) {
-            println("Erreur de parsing des horaires : ${e.localizedMessage}")
-            return true
+            e.printStackTrace()
+            false
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // HELPERS PRIVÉS
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Vérifie qu'un lieu est ouvert entre [arrivalMin] et [departureMin] (en minutes depuis minuit).
+     * Retourne true si pas d'horaires renseignés (bénéfice du doute).
+     */
+    private fun isPlaceOpen(jsonStr: String?, arrivalMin: Int, departureMin: Int): Boolean {
+        if (jsonStr.isNullOrEmpty() || jsonStr == "null") return true
+        return try {
+            val jsonArray           = Json.parseToJsonElement(jsonStr).jsonArray
+            val arrivalNorm         = arrivalMin   % (24 * 60)
+            var departureNorm       = departureMin % (24 * 60)
+            if (departureNorm < arrivalNorm) departureNorm += 24 * 60
+
+            for (element in jsonArray) {
+                val obj       = element.jsonObject
+                val openStr   = obj["open"]?.jsonPrimitive?.content  ?: continue
+                val closeStr  = obj["close"]?.jsonPrimitive?.content ?: continue
+
+                val openParts  = openStr.split(":")
+                val closeParts = closeStr.split(":")
+                val openMin    = openParts[0].toInt() * 60  + openParts[1].toInt()
+                var closeMin   = closeParts[0].toInt() * 60 + closeParts[1].toInt()
+                if (closeMin < openMin) closeMin += 24 * 60
+
+                if (arrivalNorm >= openMin && departureNorm <= closeMin) return true
+            }
+            false
+        } catch (e: Exception) {
+            println("Erreur parsing horaires : ${e.localizedMessage}")
+            true
+        }
+    }
+
+    /**
+     * Distance en kilomètres entre deux coordonnées GPS (formule de Haversine).
+     */
+    private fun haversineKm(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+        val R      = 6371.0
+        val dLat   = Math.toRadians(lat2 - lat1)
+        val dLng   = Math.toRadians(lng2 - lng1)
+        val a      = sin(dLat / 2).pow(2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLng / 2).pow(2)
+        return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+    }
+
+    /**
+     * Temps de transit estimé en minutes entre deux points GPS.
+     *
+     * Logique mixte :
+     *   < 1 km  → à pied  (5 km/h)  + 2 min de marge (traversées, feux)
+     *   ≥ 1 km  → voiture (40 km/h) + 5 min de marge (parking, entrée)
+     *   Minimum absolu : 5 min (même porte à porte)
+     */
+    private fun transitMin(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Int {
+        val distKm = haversineKm(lat1, lng1, lat2, lng2)
+        val rawMin = if (distKm < 1.0) {
+            (distKm / 5.0  * 60).toInt() + 2   // à pied
+        } else {
+            (distKm / 40.0 * 60).toInt() + 5   // voiture
+        }
+        return maxOf(rawMin, 5)
     }
 
     private fun formatTime(minutes: Int): String {
@@ -471,8 +714,7 @@ object PathService {
 
     private fun getTopImagesForPlaces(places: List<Place>): List<String> {
         if (places.isEmpty()) return emptyList()
-
-        val placeIds = places.map { it.id }.joinToString("','", "'", "'")
+        val placeIds  = places.map { it.id }.joinToString("','", "'", "'")
         val imageUrls = mutableListOf<String>()
 
         val sql = """
@@ -488,8 +730,7 @@ object PathService {
             while (rs.next()) {
                 val urlsString = rs.getString("image_urls")
                 if (!urlsString.isNullOrBlank()) {
-                    val urls = urlsString.split(",").map { it.trim() }
-                    imageUrls.addAll(urls)
+                    imageUrls.addAll(urlsString.split(",").map { it.trim() })
                 }
             }
         }
@@ -498,35 +739,18 @@ object PathService {
 
     private fun recalculateSchedules(places: List<Place>, startTimeMinutes: Int = 570): List<Place> {
         var currentTimeMinutes = startTimeMinutes
-        return places.map { place ->
+        return places.mapIndexed { index, place ->
+            // Transit depuis le lieu précédent (ou 0 pour le premier)
+            val transit = if (index == 0) 0 else {
+                val prev = places[index - 1]
+                transitMin(prev.latitude, prev.longitude, place.latitude, place.longitude)
+            }
+            currentTimeMinutes += transit
             val arrival = formatTime(currentTimeMinutes)
-            currentTimeMinutes += (place.duration * 60) + 30
+            currentTimeMinutes += place.duration * 60   // BDD en heures → minutes
             place.copy(arrivalTime = arrival)
         }
     }
 
-    suspend fun shareItineraryToGroup(itineraryId: Int, groupIdStr: String): Boolean = dbQuery {
-        try {
-            val groupUuid = java.util.UUID.fromString(groupIdStr)
 
-            // 1. On vérifie si l'itinéraire n'est pas DÉJÀ partagé dans ce groupe pour éviter les doublons
-            val exists = com.example.application.GroupItineraries.select {
-                (com.example.application.GroupItineraries.groupId eq groupUuid) and
-                        (com.example.application.GroupItineraries.itineraryId eq itineraryId)
-            }.count() > 0
-
-            if (!exists) {
-                // 2. On insère le lien
-                com.example.application.GroupItineraries.insert {
-                    it[groupId] = groupUuid
-                    it[this.itineraryId] = itineraryId
-                    it[sharedAt] = System.currentTimeMillis()
-                }
-            }
-            true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
 }
