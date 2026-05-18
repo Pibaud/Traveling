@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.application.databinding.FragmentDiscoveryBinding
 import androidx.navigation.fragment.findNavController
 import com.example.application.R
+import com.example.application.features.post.CommentsBottomSheet
 import com.example.application.utils.GuestUpsellBottomSheet
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.auth.ktx.auth
@@ -94,6 +95,12 @@ class FeedFragment : Fragment() {
                 findNavController().navigate(R.id.action_feed_to_search, bundle)
 
                 // (Note : si tu utilises les SafeArgs, utilise la syntaxe FeedFragmentDirections comme tu l'avais écrit)
+            },
+            onCommentClick = { postId ->
+                CommentsBottomSheet(postId) { newTotalCount ->
+                    // 👇 On appelle la vraie fonction du ViewModel !
+                    viewModel.updateCommentCount(postId, newTotalCount)
+                }.show(childFragmentManager, "CommentsSheet")
             }
         )
         val layoutManager = LinearLayoutManager(requireContext())

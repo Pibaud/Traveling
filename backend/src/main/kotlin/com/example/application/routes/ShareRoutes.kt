@@ -6,6 +6,7 @@ import com.example.application.models.LikeRequest
 import com.example.application.models.JoinGroupRequest
 import com.example.application.models.NotificationToggleRequest
 import com.example.application.services.AIService
+import com.example.application.services.CommentService
 import com.example.application.services.GroupService
 import com.example.application.services.PlaceService
 import com.example.application.services.PostService
@@ -339,6 +340,30 @@ fun Route.shareRoutes() {
             } catch (e: Exception) {
                 application.log.error("Erreur récupération posts à proximité", e)
                 call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
+
+        get("/posts/{id}/comments") {
+            val postId = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            try {
+                val comments = CommentService.getCommentsForPost(postId)
+                call.respond(HttpStatusCode.OK, comments)
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
+
+        post("/comments/create") {
+            try {
+                val request = call.receive<com.example.application.models.CreateCommentRequest>()
+                val success = CommentService.addComment(request.postId, request.userId, request.content)
+                if (success) {
+                    call.respond(HttpStatusCode.Created)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "Erreur création")
+                }
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, "Format invalide")
             }
         }
     }

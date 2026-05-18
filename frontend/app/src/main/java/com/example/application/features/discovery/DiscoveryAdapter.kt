@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.bumptech.glide.Glide
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.example.application.R
@@ -17,7 +18,8 @@ import com.google.android.material.tabs.TabLayoutMediator
 class DiscoveryAdapter(
     private val onLikeClicked: (String) -> Unit,
     private val onPostLongClick: (String) -> Unit,
-    private val onSimilarClick: (String) -> Unit
+    private val onSimilarClick: (String) -> Unit,
+    private val onCommentClick: (String) -> Unit
 ) : RecyclerView.Adapter<DiscoveryAdapter.PostViewHolder>() {
 
     private var posts: List<Post> = emptyList()
@@ -30,7 +32,7 @@ class DiscoveryAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewHolder {
         val binding = ItemPlaceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         // NOUVEAU 2 : On passe cette fonction au ViewHolder quand on le crée
-        return PostViewHolder(binding, onLikeClicked, onSimilarClick)
+        return PostViewHolder(binding, onLikeClicked, onSimilarClick, onCommentClick)
     }
 
     override fun onBindViewHolder(holder: PostViewHolder, position: Int) {
@@ -51,7 +53,8 @@ class DiscoveryAdapter(
     inner class PostViewHolder(
         val binding: ItemPlaceBinding, // Garde-le en 'val' (interne à la classe)
         private val onLikeClicked: (String) -> Unit,
-        private val onSimilarClick: (String) -> Unit
+        private val onSimilarClick: (String) -> Unit,
+        private val onCommentClick: (String) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
         private var isLiked = false
@@ -89,6 +92,8 @@ class DiscoveryAdapter(
                 }
                 binding.vpPlacePhotos.registerOnPageChangeCallback(onPageChangeCallback!!)
             }
+
+
 
             // --- LIKES ET COMPTEURS ---
             currentLikes = post.likesCount
@@ -147,13 +152,21 @@ class DiscoveryAdapter(
                 binding.tvTags.visibility = View.GONE
             }
 
-            val avatarToLoad = post.authorAvatarUrl.ifBlank {
-                R.drawable.round_account_circle_24
-            }
-            binding.ivUserAvatar.load(avatarToLoad) {
-                crossfade(true)
-                transformations(CircleCropTransformation())
-                error(R.drawable.round_account_circle_24)
+            // 1. Un petit log pour vérifier que l'Adapter reçoit bien l'URL du post
+            android.util.Log.d("AvatarDebug", "Post de ${post.authorName} - URL: '${post.authorAvatarUrl}'")
+
+            // 2. Le chargement Glide hyper-sécurisé pour le ViewPager2
+            if (post.authorAvatarUrl.isNotBlank()) {
+                com.bumptech.glide.Glide.with(binding.root.context)
+                    .load(post.authorAvatarUrl)
+                    // Utilise ton icône par défaut existante si l'image charge ou échoue
+                    .placeholder(R.drawable.filled_person_48)
+                    .error(R.drawable.filled_person_48)
+                    .centerCrop()
+                    .into(binding.ivUserAvatar)
+            } else {
+                // Si l'utilisateur n'a pas d'avatar en base de données
+                binding.ivUserAvatar.setImageResource(R.drawable.filled_person_48)
             }
 
             // --- GOOGLE MAPS (ITINÉRAIRE) ---
@@ -176,6 +189,10 @@ class DiscoveryAdapter(
 
             binding.ivSimilar.setOnClickListener {
                 onSimilarClick(post.id)
+            }
+
+            binding.ivComment.setOnClickListener {
+                onCommentClick(post.id)
             }
         }
 

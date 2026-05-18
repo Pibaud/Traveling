@@ -41,6 +41,19 @@ class DiscoveryViewModel : ViewModel() {
         }
     }
 
+    fun updateCommentCount(postId: String, newCount: Int) {
+        val currentList = _posts.value ?: return
+        // On recrée une nouvelle liste avec le post mis à jour
+        val updatedList = currentList.map { post ->
+            if (post.id == postId) {
+                post.copy(commentsCount = newCount)
+            } else {
+                post
+            }
+        }
+        _posts.value = updatedList
+    }
+
     fun toggleLikePost(postId: String) {
         // On récupère l'ID Firebase de l'utilisateur actuel
         val userId = Firebase.auth.currentUser?.uid

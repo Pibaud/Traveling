@@ -1,4 +1,6 @@
 import com.example.application.model.AnalysisResult
+import com.example.application.model.Comment
+import com.example.application.model.CreateCommentRequest
 import com.example.application.model.CreateGroupRequest
 import com.example.application.model.GeneratePathRequest
 import com.example.application.model.Group
@@ -219,6 +221,12 @@ interface TravelingApiService {
         @Query("limit") limit: Int = 20,
         @Query("offset") offset: Int = 0
     ): List<Post>
+
+    @GET("share/posts/{id}/comments")
+    suspend fun getComments(@Path("id") postId: String): List<Comment>
+
+    @POST("share/comments/create")
+    suspend fun postComment(@Body request: CreateCommentRequest): Response<Unit>
 }
 
 
